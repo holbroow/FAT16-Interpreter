@@ -54,49 +54,51 @@ int main() {
     // Print bootsector fields (debug)
     printf("BS_jmpBoot: ");
     for (size_t i = 0; i < sizeof(bootSector.BS_jmpBoot); i++) {
-        printf("%02X ", (unsigned char)bootSector.BS_jmpBoot[i]);
+        printf("%02X ", bootSector.BS_jmpBoot[i]);
     }
     printf("\n");
     printf("BS_OEMName: ");
     for (size_t i = 0; i < sizeof(bootSector.BS_OEMName); i++) {
-        printf("%02X ", (unsigned char)bootSector.BS_OEMName[i]);
+        printf("%02X ", bootSector.BS_OEMName[i]);
     }
     printf("\n");
-    printf("BPB_BytsPerSec: %02X\n", (unsigned char)bootSector.BPB_BytsPerSec);
-    printf("BPB_SecPerClus: %02X\n", (unsigned char)bootSector.BPB_SecPerClus);
-    printf("BPB_RsvdSecCnt: %02X\n", (unsigned char)bootSector.BPB_RsvdSecCnt);
-    printf("BPB_NumFATs: %02X\n", (unsigned char)bootSector.BPB_NumFATs);
-    printf("BPB_RootEntCnt: %02X\n", (unsigned char)bootSector.BPB_RootEntCnt);
-    printf("BPB_TotSec16: %02X\n", (unsigned char)bootSector.BPB_TotSec16);
-    printf("BPB_Media: %02X\n", (unsigned char)bootSector.BPB_Media);
-    printf("BPB_FATSz16: %02X\n", (unsigned char)bootSector.BPB_FATSz16);
-    printf("BPB_SecPerTrk: %02X\n", (unsigned char)bootSector.BPB_SecPerTrk);
-    printf("BPB_NumHeads: %02X\n", (unsigned char)bootSector.BPB_NumHeads);
-    printf("BPB_HiddSec: %02X\n", (unsigned char)bootSector.BPB_HiddSec);
-    printf("BPB_TotSec32: %02X\n", (unsigned char)bootSector.BPB_TotSec32);
-    printf("BS_DrvNum: %02X\n", (unsigned char)bootSector.BS_DrvNum);
-    printf("BS_Reserved1: %02X\n", (unsigned char)bootSector.BS_Reserved1);
-    printf("BS_BootSig: %02X\n", (unsigned char)bootSector.BS_BootSig);
-    printf("BS_VolID: %02X\n", (unsigned char)bootSector.BS_VolID);
+    printf("BPB_BytsPerSec: %02X\n", bootSector.BPB_BytsPerSec); // maybe an issue here
+    printf("BPB_SecPerClus: %02X\n", bootSector.BPB_SecPerClus);
+    printf("BPB_RsvdSecCnt: %02X\n", bootSector.BPB_RsvdSecCnt);
+    printf("BPB_NumFATs: %02X\n", bootSector.BPB_NumFATs);
+    printf("BPB_RootEntCnt: %02X\n", bootSector.BPB_RootEntCnt);
+    printf("BPB_TotSec16: %02X\n", bootSector.BPB_TotSec16);
+    printf("BPB_Media: %02X\n", bootSector.BPB_Media);
+    printf("BPB_FATSz16: %02X\n", bootSector.BPB_FATSz16);
+    printf("BPB_SecPerTrk: %02X\n", bootSector.BPB_SecPerTrk);
+    printf("BPB_NumHeads: %02X\n", bootSector.BPB_NumHeads);
+    printf("BPB_HiddSec: %02X\n", bootSector.BPB_HiddSec);
+    printf("BPB_TotSec32: %02X\n", bootSector.BPB_TotSec32);
+    printf("BS_DrvNum: %02X\n", bootSector.BS_DrvNum);
+    printf("BS_Reserved1: %02X\n", bootSector.BS_Reserved1);
+    printf("BS_BootSig: %02X\n", bootSector.BS_BootSig);
+    printf("BS_VolID: %02X\n", bootSector.BS_VolID);
     printf("BS_VolLab: ");
     for (size_t i = 0; i < sizeof(bootSector.BS_VolLab); i++) {
-        printf("%02X ", (unsigned char)bootSector.BS_VolLab[i]);
+        printf("%02X ", bootSector.BS_VolLab[i]);
     }
     printf("\n");
     printf("BS_FilSysType: ");
     for (size_t i = 0; i < sizeof(bootSector.BS_FilSysType); i++) {
-        printf("%02X ", (unsigned char)bootSector.BS_FilSysType[i]);
+        printf("%02X ", bootSector.BS_FilSysType[i]);
     }
     printf("\n\n");
 
 
     // Task 3 - Load a copy of the first FAT into memory and produce an ordered
-    // list of all clusters that make up a fale given the starting cluster number etc.
+    // list of all clusters that make up a file given the starting cluster number etc.
+    
+    off_t initialFATOffset = sizeof(BootSector) + (bootSector.BPB_RsvdSecCnt * bootSector.BPB_BytsPerSec);
+
+    printf("Offset for first FAT byte: %zo\n", initialFATOffset);
     
     
-
-
-
+    
 
 
 }
