@@ -5,6 +5,12 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+ssize_t readBytes(int fd, off_t offset, char *buffer, ssize_t bytesToRead) {
+    fd = open("fat16.img", O_RDONLY);               // opens file
+    lseek(fd, offset, SEEK_SET);                    // seeks to the byte position in the file
+    return read(fd, buffer, bytesToRead);      // reads the bytes at that position
+}
+
 int main() {
     int fd;
     off_t offset = 0;
@@ -12,15 +18,7 @@ int main() {
     ssize_t bytesRead;
     char buffer[100];
 
-
-    // opens file
-    fd = open("fat16.img", O_RDONLY);                   
-
-    // seeks to the byte position in the file
-    lseek(fd, offset, SEEK_SET);                        
-
-    // reads the bytes at that position
-    bytesRead = read(fd, buffer, bytesToRead);         
+    bytesRead = readBytes(fd, offset, buffer, bytesToRead);
 
     // prints said bytes
     printf("Bytes read: \n");                           
