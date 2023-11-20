@@ -29,14 +29,21 @@ typedef struct __attribute__((__packed__)) {
     u_int8_t BS_FilSysType[ 8 ];    // e.g. 'FAT16 ' (Not 0 term.)
 } BootSector;
 
-ssize_t readBytes(int fd, off_t offset, char *buffer, ssize_t bytesToRead) {
-    fd = open("fat16.img", O_RDONLY);               // Open file
+ssize_t readBytes(int fd, char *filename, off_t offset, char *buffer, ssize_t bytesToRead) {
+    fd = open(filename, O_RDONLY);               // Open file
     lseek(fd, offset, SEEK_SET);                    // Seek to the byte position for the bootsector
     return read(fd, buffer, bytesToRead);           // Read the file from start the the end of the boot sector
     close(fd);                                      // Close file
 }
 
-void printFields(BootSector *bootSector) {
+void printFields(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize) {
+    off_t offset = 0;                               // How many bytes from the start of the file to begin
+    size_t bytesToRead = sizeof(BootSector);        // How many bytes to be read from the file
+    ssize_t bytesRead;                              // How many bytes were actually read from the file
+
+    bytesRead = readBytes(fd, filename, offset, bootSector, bytesToRead);       // Runs readBytes functions to open the file, seek to the bytes, and read them to the bootSector struct directly
+
+
     // Print bootsector fields (debug)
     printf("BS_jmpBoot: ");
     for (size_t i = 0; i < sizeof(bootSector->BS_jmpBoot); i++) {
@@ -76,32 +83,46 @@ void printFields(BootSector *bootSector) {
     printf("\n\n");
 }
 
+void produceClusters(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize) {
+    size_t bytesToRead = 8;        // How many bytes to be read from the file
+    ssize_t bytesRead;                              // How many bytes were actually read from the file
+    char buffer[bytesToRead];                       // Buffer where the file bytes are temporarily read to
+
+    off_t initialFATOffset = bootSectorSize + (bootSector->BPB_RsvdSecCnt * bootSector->BPB_BytsPerSec);
+
+    printf("Offset for first FAT byte: %d\n", initialFATOffset); // debug
+    printf("BootSector size: %d\n", bootSectorSize); // debug
+
+    bytesRead = readBytes(fd, filename, initialFATOffset, buffer, bytesToRead);
+
+    for(size_t i = 0; i < sizeof(buffer); i++) {
+        printf("Byte: %d\n", buffer[i]);
+    }
+}
+
 int main() {
-    int fd;                                     // The fat16 image
-    off_t offset = 0;                           // How many bytes from the start of the file to begin
-    size_t bytesToRead = sizeof(BootSector);    // How many bytes to be read from the file
-    ssize_t bytesRead;                          // How many bytes were actually read from the file
-    char buffer[bytesToRead];                   // Buffer where the file bytes are temporarily read to
-    BootSector bootSector;                      // Struct of BootSector field
+    int fd;                                         // The file descriptor
+    char filename[] = "fat16.img";                  // The fat16 image filename
+    BootSector bootSector;                          // Struct of BootSector field
+    size_t bootSectorSize = sizeof(bootSector);     // Size of BootSector in bytes
+
 
     // Task 2
 
-    bytesRead = readBytes(fd, offset, buffer, bytesToRead);     // Runs readBytes functions to open the file, seek to the bytes, and read them
-    memcpy(&bootSector, buffer, bytesToRead);                   // Copy its contents to the correct struct fields
-    printFields(&bootSector);                                   // Print all fields of the boot sector.
+    printFields(fd, filename, &bootSector, bootSectorSize);       // Print all fields of the boot sector.
 
 
     // Task 3 - Load a copy of the first FAT into memory and produce an ordered
     // list of all clusters that make up a file given the starting cluster number etc.
     
-    off_t initialFATOffset = sizeof(bootSector) + (bootSector.BPB_RsvdSecCnt * bootSector.BPB_BytsPerSec);
+    // A FAT  is simply an array of entries, one for each cluster, which states the next cluster in the
+    // sequence that makes up a file. Thus, each file stored in the file system will have a chain of entries in
+    // the FAT that identifies the clusters making up the file, and the order they appear in the sequence.
 
-    printf("Offset for first FAT byte: %d\n", initialFATOffset); // debug
-    printf("BootSector size in bytes: %d\n", sizeof(bootSector)); // debug
-    
-    
+    produceClusters(fd, filename, &bootSector, bootSectorSize);     // Load a copy of first FAT into memory, and print an ordered list of clusters.
 
-    
+
+
     
 
 
