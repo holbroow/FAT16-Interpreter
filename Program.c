@@ -29,6 +29,7 @@ typedef struct __attribute__((__packed__)) {
     u_int8_t BS_FilSysType[ 8 ];    // e.g. 'FAT16 ' (Not 0 term.)
 } BootSector;
 
+// Task 1
 ssize_t readBytes(int fd, char *filename, off_t offset, char *buffer, ssize_t bytesToRead) {
     fd = open(filename, O_RDONLY);               // Open file
     lseek(fd, offset, SEEK_SET);                    // Seek to the byte position for the bootsector
@@ -84,20 +85,18 @@ void printFields(int fd, char *filename, BootSector *bootSector, size_t bootSect
 }
 
 void produceClusters(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize) {
-    size_t bytesToRead = 8;        // How many bytes to be read from the file
-    ssize_t bytesRead;                              // How many bytes were actually read from the file
-    char buffer[bytesToRead];                       // Buffer where the file bytes are temporarily read to
-
-    off_t initialFATOffset = bootSectorSize + (bootSector->BPB_RsvdSecCnt * bootSector->BPB_BytsPerSec);
+    ssize_t bytesRead;                                                                                      // How many bytes were actually read from the file
+    u_int16_t firstCluster;                                                                                 // The first cluster of the FAT
+    off_t initialFATOffset = bootSectorSize + (bootSector->BPB_RsvdSecCnt * bootSector->BPB_BytsPerSec);    // The offset at which we will start reading (the position of the first fat cluster)
 
     printf("Offset for first FAT byte: %d\n", initialFATOffset); // debug
     printf("BootSector size: %d\n", bootSectorSize); // debug
 
-    bytesRead = readBytes(fd, filename, initialFATOffset, buffer, bytesToRead);
+    bytesRead = readBytes(fd, filename, initialFATOffset, &firstCluster, sizeof(u_int16_t));
 
-    for(size_t i = 0; i < sizeof(buffer); i++) {
-        printf("Byte: %d\n", buffer[i]);
-    }
+    printf("%d\n", firstCluster);
+
+
 }
 
 int main() {
@@ -108,18 +107,17 @@ int main() {
 
 
     // Task 2
-
     printFields(fd, filename, &bootSector, bootSectorSize);       // Print all fields of the boot sector.
 
 
     // Task 3 - Load a copy of the first FAT into memory and produce an ordered
     // list of all clusters that make up a file given the starting cluster number etc.
-    
+    produceClusters(fd, filename, &bootSector, bootSectorSize);     // Load a copy of first FAT into memory, and print an ordered list of clusters.
+
     // A FAT  is simply an array of entries, one for each cluster, which states the next cluster in the
     // sequence that makes up a file. Thus, each file stored in the file system will have a chain of entries in
     // the FAT that identifies the clusters making up the file, and the order they appear in the sequence.
 
-    produceClusters(fd, filename, &bootSector, bootSectorSize);     // Load a copy of first FAT into memory, and print an ordered list of clusters.
 
 
 
