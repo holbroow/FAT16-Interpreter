@@ -97,8 +97,7 @@ void produceClusters(int fd, char *filename, BootSector *bootSector, size_t boot
     ssize_t bytesRead;                                                                                              // How many bytes were actually read from the file
     u_int16_t retrievedCluster;                                                                                     // The first cluster of the FAT
     u_int16_t previousCluster;                                                                                      // The most recent cluster retrieved from the file
-    off_t initialFATOffset = bootSectorSize + (bootSector->BPB_RsvdSecCnt * bootSector->BPB_BytsPerSec);            // The offset at which we will start reading (the position of the first fat cluster)
-    //off_t initialFATOffset = 2048;                                                                                   (Debug)
+    off_t initialFATOffset = bootSector->BPB_RsvdSecCnt * bootSector->BPB_BytsPerSec;                               // The offset at which we will start reading (the position of the first fat cluster)
 
     u_int16_t clusterList[bootSector->BPB_FATSz16];                                                                 // A list for the FAT clusters, size from the FAT Size stored in the boot sector
     size_t clusterCount = 0;                                                                                           // Counter for the amount of clusters read from the file
@@ -149,9 +148,62 @@ void produceClusters(int fd, char *filename, BootSector *bootSector, size_t boot
 // Task 4
 void listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize) {
     ssize_t bytesRead;
-    off_t rootDIROffset = bootSector->BPB_RsvdSecCnt + bootSector->BPB_NumFATs * bootSector->BPB_FATSz16;
+    //off_t rootDIROffset = (bootSector->BPB_RsvdSecCnt + bootSector->BPB_NumFATs) * bootSector->BPB_FATSz16;
+    off_t rootDIROffset = (bootSector->BPB_RsvdSecCnt * bootSector->BPB_BytsPerSec) + (bootSector->BPB_NumFATs * bootSector->BPB_FATSz16);
+    char directoryBuffer[32];
 
-    
+    /*
+        For each file, output:
+        - First/Starting Cluster
+        - Last modified (Time and Date)
+        - File attributes (single letter for each, hyphen for unset flag)
+        - File length
+        - Filename
+
+        !! (Formatted neatly in columns) !!
+    */
+
+    typedef struct __attribute__ ((__packed__)) {
+        u_int8_t DIR_Name[ 11 ];             // Non zero terminated string
+        u_int8_t DIR_Attr;                   // File attributes
+        u_int8_t DIR_NTRes;                  // Used by Windows NT, ignore
+        u_int8_t DIR_CrtTimeTenth;           // Tenths of sec. 0...199
+        u_int16_t DIR_CrtTime;               // Creation Time in 2s intervals
+        u_int16_t DIR_CrtDate;               // Date file created
+        u_int16_t DIR_LstAccDate;            // Date of last read or write
+        u_int16_t DIR_FstClusHI;             // Top 16 bits file's 1st cluster
+        u_int16_t DIR_WrtTime;               // Time of last write
+        u_int16_t DIR_WrtDate;               // Date of last write
+        u_int16_t DIR_FstClusLO;             // Lower 16 bits file's 1st cluster
+        u_int32_t DIR_FileSize;              // File size in bytes
+    } DirectoryEntry;
+
+    DirectoryEntry dirEntry1;
+
+    printf("%d\n", bootSector->BPB_RsvdSecCnt);
+    printf("%d\n", bootSector->BPB_NumFATs);
+    printf("%d\n", bootSector->BPB_FATSz16);
+    printf("%d\n", rootDIROffset);
+    printf("\n");
+
+    bytesRead = readBytes(fd, filename, rootDIROffset, &dirEntry1, sizeof(DirectoryEntry));
+
+
+
+
+    for (size_t i = 0; i < sizeof(dirEntry1.DIR_Name); i++)
+    {
+        printf("%c ", dirEntry1.DIR_Name[i]);
+
+    }
+    printf("\n");
+    printf("DIR_Attr: %d\n", dirEntry1.DIR_Attr);
+    printf("DIR_NTRes: %d\n", dirEntry1.DIR_NTRes);   
+    printf("DIR_CrtTimeTenth: %d\n", dirEntry1.DIR_CrtTimeTenth);
+    printf("DIR_CrtTime: %d\n", dirEntry1.DIR_CrtTime);
+
+
+
 
 }
 
