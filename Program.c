@@ -37,6 +37,7 @@ ssize_t readBytes(int fd, char *filename, off_t offset, char *buffer, ssize_t by
     close(fd);                                      // Close file
 }
 
+// Task 2
 void printFields(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize) {
     off_t offset = 0;                               // How many bytes from the start of the file to begin
     size_t bytesToRead = sizeof(BootSector);        // How many bytes to be read from the file
@@ -84,34 +85,76 @@ void printFields(int fd, char *filename, BootSector *bootSector, size_t bootSect
     printf("\n\n");
 }
 
+// Task 3
 void produceClusters(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize) {
     /*current issues:
         - the supposed initialFATOffset value is FFFF (probably not correct)
         - cluster lists end in 0000 (i dont think this is right)
     */
 
+   // resource for FAT structure - https://people.cs.umass.edu/~liberato/courses/2017-spring-compsci365/lecture-notes/11-fats-and-directory-entries/
+
     ssize_t bytesRead;                                                                                              // How many bytes were actually read from the file
     u_int16_t retrievedCluster;                                                                                     // The first cluster of the FAT
     u_int16_t previousCluster;                                                                                      // The most recent cluster retrieved from the file
-    off_t initialFATOffset = /*bootSectorSize + */(bootSector->BPB_RsvdSecCnt * bootSector->BPB_BytsPerSec);           // The offset at which we will start reading (the position of the first fat cluster)
+    off_t initialFATOffset = bootSectorSize + (bootSector->BPB_RsvdSecCnt * bootSector->BPB_BytsPerSec);            // The offset at which we will start reading (the position of the first fat cluster)
+    //off_t initialFATOffset = 2048;                                                                                   (Debug)
+
+    u_int16_t clusterList[bootSector->BPB_FATSz16];                                                                 // A list for the FAT clusters, size from the FAT Size stored in the boot sector
+    size_t clusterCount = 0;                                                                                           // Counter for the amount of clusters read from the file
+
 
     printf("Offset for first FAT byte: %d\n", initialFATOffset); // debug - Print the FAT offset to monitor the functions read start point
 
-    printf("Retrieved: ");
+    printf("Retrieved from file: ");
+    // Get the first unusable cluster
+    bytesRead = bytesRead = readBytes(fd, filename, initialFATOffset, &retrievedCluster, sizeof(u_int16_t));
+    clusterList[clusterCount] = retrievedCluster;
+    clusterCount++;
+    printf("%04X (unusable) - ", retrievedCluster);
+    // Go to the position provided by Cluster 1 and read CLuster 2
+    bytesRead = bytesRead = readBytes(fd, filename, initialFATOffset + retrievedCluster, &retrievedCluster, sizeof(u_int16_t));
+    clusterList[clusterCount] = retrievedCluster;
+    clusterCount++;
+    printf("%04X - ", retrievedCluster);
+    // Start loop to go to each subsequent cluster position until 0x0000 or a value greater than 0xFFF8
     while (retrievedCluster < 0xFFF8) {
         bytesRead = readBytes(fd, filename, initialFATOffset + retrievedCluster, &retrievedCluster, sizeof(u_int16_t));
-        printf("%04X - ", retrievedCluster);
-        if (retrievedCluster == '\0') {
-            break;
+        clusterList[clusterCount] = retrievedCluster;
+        clusterCount++;
+        if (retrievedCluster >=  0xFFF8) {
+            printf("%04X (EOF)\n", retrievedCluster);
+        } else {
+            printf("%04X - ", retrievedCluster);
         }
+    }
+
+    printf("clusterList Contains: ");
+    for (size_t i = 0; i < clusterCount; i++)
+    {
+        printf("%04X, ", clusterList[i]);
+    }
+    printf("\n");
+    printf("clusterList Contains (decimal): ");
+    for (size_t i = 0; i < clusterCount; i++)
+    {
+        printf("%d, ", clusterList[i]);
     }
     printf("\n");
 
 
+    printf("\n");
+}
 
+// Task 4
+void listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize) {
+    ssize_t bytesRead;
+    off_t rootDIROffset = bootSector->BPB_RsvdSecCnt + bootSector->BPB_NumFATs * bootSector->BPB_FATSz16;
 
+    
 
 }
+
 
 
 int main() {
@@ -122,13 +165,18 @@ int main() {
 
 
     // Task 2
-    printFields(fd, filename, &bootSector, bootSectorSize);       // Print all fields of the boot sector.
+    printf("Task 2\n");
+    printFields(fd, filename, &bootSector, bootSectorSize);         // Print all fields of the boot sector
 
 
     // Task 3
-    produceClusters(fd, filename, &bootSector, bootSectorSize);     // Load a copy of first FAT into memory, and print an ordered list of clusters.
+    printf("Task 3\n");
+    produceClusters(fd, filename, &bootSector, bootSectorSize);     // Load a copy of first FAT into memory, and print an ordered list of clusters
 
 
+    // Task 4
+    printf("Task 4\n");
+    listFiles(fd, filename, &bootSector, bootSectorSize);           // Output a list of files in the root directory
 
 
 }
