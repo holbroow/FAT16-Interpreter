@@ -85,19 +85,34 @@ void printFields(int fd, char *filename, BootSector *bootSector, size_t bootSect
 }
 
 void produceClusters(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize) {
-    ssize_t bytesRead;                                                                                      // How many bytes were actually read from the file
-    u_int16_t firstCluster;                                                                                 // The first cluster of the FAT
-    off_t initialFATOffset = bootSectorSize + (bootSector->BPB_RsvdSecCnt * bootSector->BPB_BytsPerSec);    // The offset at which we will start reading (the position of the first fat cluster)
+    /*current issues:
+        - the supposed initialFATOffset value is FFFF (probably not correct)
+        - cluster lists end in 0000 (i dont think this is right)
+    */
 
-    printf("Offset for first FAT byte: %d\n", initialFATOffset); // debug
-    printf("BootSector size: %d\n", bootSectorSize); // debug
+    ssize_t bytesRead;                                                                                              // How many bytes were actually read from the file
+    u_int16_t retrievedCluster;                                                                                     // The first cluster of the FAT
+    u_int16_t previousCluster;                                                                                      // The most recent cluster retrieved from the file
+    off_t initialFATOffset = /*bootSectorSize + */(bootSector->BPB_RsvdSecCnt * bootSector->BPB_BytsPerSec);           // The offset at which we will start reading (the position of the first fat cluster)
 
-    bytesRead = readBytes(fd, filename, initialFATOffset, &firstCluster, sizeof(u_int16_t));
+    printf("Offset for first FAT byte: %d\n", initialFATOffset); // debug - Print the FAT offset to monitor the functions read start point
 
-    printf("%d\n", firstCluster);
+    printf("Retrieved: ");
+    while (retrievedCluster < 0xFFF8) {
+        bytesRead = readBytes(fd, filename, initialFATOffset + retrievedCluster, &retrievedCluster, sizeof(u_int16_t));
+        printf("%04X - ", retrievedCluster);
+        if (retrievedCluster == '\0') {
+            break;
+        }
+    }
+    printf("\n");
+
+
+
 
 
 }
+
 
 int main() {
     int fd;                                         // The file descriptor
@@ -110,18 +125,10 @@ int main() {
     printFields(fd, filename, &bootSector, bootSectorSize);       // Print all fields of the boot sector.
 
 
-    // Task 3 - Load a copy of the first FAT into memory and produce an ordered
-    // list of all clusters that make up a file given the starting cluster number etc.
+    // Task 3
     produceClusters(fd, filename, &bootSector, bootSectorSize);     // Load a copy of first FAT into memory, and print an ordered list of clusters.
 
-    // A FAT  is simply an array of entries, one for each cluster, which states the next cluster in the
-    // sequence that makes up a file. Thus, each file stored in the file system will have a chain of entries in
-    // the FAT that identifies the clusters making up the file, and the order they appear in the sequence.
 
-
-
-
-    
 
 
 }
