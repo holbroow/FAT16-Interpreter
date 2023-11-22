@@ -148,20 +148,8 @@ void produceClusters(int fd, char *filename, BootSector *bootSector, size_t boot
 // Task 4
 void listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize) {
     ssize_t bytesRead;
-    //off_t rootDIROffset = (bootSector->BPB_RsvdSecCnt + bootSector->BPB_NumFATs) * bootSector->BPB_FATSz16;
-    off_t rootDIROffset = (bootSector->BPB_RsvdSecCnt * bootSector->BPB_BytsPerSec) + (bootSector->BPB_NumFATs * bootSector->BPB_FATSz16);
+    off_t rootDIROffset = (bootSector->BPB_RsvdSecCnt + (bootSector->BPB_NumFATs * bootSector->BPB_FATSz16)) * bootSector->BPB_BytsPerSec;
     char directoryBuffer[32];
-
-    /*
-        For each file, output:
-        - First/Starting Cluster
-        - Last modified (Time and Date)
-        - File attributes (single letter for each, hyphen for unset flag)
-        - File length
-        - Filename
-
-        !! (Formatted neatly in columns) !!
-    */
 
     typedef struct __attribute__ ((__packed__)) {
         u_int8_t DIR_Name[ 11 ];             // Non zero terminated string
@@ -178,32 +166,39 @@ void listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSector
         u_int32_t DIR_FileSize;              // File size in bytes
     } DirectoryEntry;
 
+
     DirectoryEntry dirEntry1;
-
-    printf("%d\n", bootSector->BPB_RsvdSecCnt);
-    printf("%d\n", bootSector->BPB_NumFATs);
-    printf("%d\n", bootSector->BPB_FATSz16);
-    printf("%d\n", rootDIROffset);
-    printf("\n");
-
     bytesRead = readBytes(fd, filename, rootDIROffset, &dirEntry1, sizeof(DirectoryEntry));
-
-
 
 
     for (size_t i = 0; i < sizeof(dirEntry1.DIR_Name); i++)
     {
-        printf("%c ", dirEntry1.DIR_Name[i]);
-
+        printf("%c", dirEntry1.DIR_Name[i]);
     }
     printf("\n");
-    printf("DIR_Attr: %d\n", dirEntry1.DIR_Attr);
-    printf("DIR_NTRes: %d\n", dirEntry1.DIR_NTRes);   
-    printf("DIR_CrtTimeTenth: %d\n", dirEntry1.DIR_CrtTimeTenth);
-    printf("DIR_CrtTime: %d\n", dirEntry1.DIR_CrtTime);
+    printf("DIR_Attr: %08X\n", dirEntry1.DIR_Attr);
+    printf("DIR_NTRes: %08X\n", dirEntry1.DIR_NTRes);   
+    printf("DIR_CrtTimeTenth: %08X\n", dirEntry1.DIR_CrtTimeTenth);
+    printf("DIR_CrtTime: %08X\n", dirEntry1.DIR_CrtTime);
+    printf("DIR_CrtDate: %08X\n", dirEntry1.DIR_CrtDate);
+    printf("DIR_LstAccDate: %08X\n", dirEntry1.DIR_LstAccDate);
+    printf("DIR_FstClusHI: %08X\n", dirEntry1.DIR_FstClusHI);
+    printf("DIR_WrtTime: %08X\n", dirEntry1.DIR_WrtTime);
+    printf("DIR_WrtDate: %08X\n", dirEntry1.DIR_WrtDate);
+    printf("DIR_FstClusLO: %08X\n", dirEntry1.DIR_FstClusLO);
+    printf("DIR_FileSize: %08X\n", dirEntry1.DIR_FileSize);
 
 
+    /*
+        For each file, output:
+        - First/Starting Cluster
+        - Last modified (Time and Date)
+        - File attributes (single letter for each, hyphen for unset flag)
+        - File length
+        - Filename
 
+        !! (Formatted neatly in columns) !!
+    */
 
 }
 
