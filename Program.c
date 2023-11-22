@@ -131,19 +131,21 @@ void listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSector
     ssize_t bytesRead;
     off_t rootDIROffset = (bootSector->BPB_RsvdSecCnt + (bootSector->BPB_NumFATs * bootSector->BPB_FATSz16)) * bootSector->BPB_BytsPerSec;
     char directoryBuffer[32];
-    DirectoryEntry *directories[bootSector->BPB_RootEntCnt];
+    //DirectoryEntry *directories[bootSector->BPB_RootEntCnt];
+    DirectoryEntry **directories = malloc(bootSector->BPB_RootEntCnt * sizeof(DirectoryEntry *));
 
+ 
     for (size_t i = 0; i < bootSector->BPB_RootEntCnt; i++)
     {
-        DirectoryEntry directory;
-        bytesRead = readBytes(fd, filename, rootDIROffset, &i, sizeof(DirectoryEntry));
-        directories[i] = &directory;
+        //DirectoryEntry entry1;
+        DirectoryEntry *entry = malloc(sizeof(DirectoryEntry));
+        bytesRead = readBytes(fd, filename, rootDIROffset + (i*32), entry, sizeof(DirectoryEntry));
+        directories[i] = entry;
     }
-
 
     for (size_t i = 0; i < sizeof(directories); i++)
     {
-        for (size_t j = 0; j < sizeof(directories[i]->DIR_Name); i++) {
+        for (size_t j = 0; j < sizeof(directories[i]->DIR_Name); j++) {
             printf("%c", directories[i]->DIR_Name[j]);
         }
         printf("\n");
@@ -159,16 +161,6 @@ void listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSector
         printf("DIR_FstClusLO: %08X\n", directories[i]->DIR_FstClusLO);
         printf("DIR_FileSize: %08X\n", directories[i]->DIR_FileSize);
     }
-
-    
-
-    // DirectoryEntry dirEntry1;
-    // bytesRead = readBytes(fd, filename, rootDIROffset, &dirEntry1, sizeof(DirectoryEntry));
-    // directories[0] = &dirEntry1;
-
-    // DirectoryEntry dirEntry2;
-    // bytesRead = readBytes(fd, filename, rootDIROffset+32, &dirEntry2, sizeof(DirectoryEntry));
-    // directories[1] = &dirEntry2;
 }
 
 
