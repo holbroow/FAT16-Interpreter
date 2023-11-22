@@ -31,7 +31,7 @@ typedef struct __attribute__((__packed__)) {
 
 // Task 1
 ssize_t readBytes(int fd, char *filename, off_t offset, char *buffer, ssize_t bytesToRead) {
-    fd = open(filename, O_RDONLY);               // Open file
+    fd = open(filename, O_RDONLY);                  // Open file
     lseek(fd, offset, SEEK_SET);                    // Seek to the byte position for the bootsector
     return read(fd, buffer, bytesToRead);           // Read the file from start the the end of the boot sector
     close(fd);                                      // Close file
@@ -87,70 +87,32 @@ void printFields(int fd, char *filename, BootSector *bootSector, size_t bootSect
 
 // Task 3
 void produceClusters(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize) {
-    /*current issues:
-        - the supposed initialFATOffset value is FFFF (probably not correct)
-        - cluster lists end in 0000 (i dont think this is right)
-    */
-
-   // resource for FAT structure - https://people.cs.umass.edu/~liberato/courses/2017-spring-compsci365/lecture-notes/11-fats-and-directory-entries/
-
     ssize_t bytesRead;                                                                                              // How many bytes were actually read from the file
     u_int16_t retrievedCluster;                                                                                     // The first cluster of the FAT
     u_int16_t previousCluster;                                                                                      // The most recent cluster retrieved from the file
     off_t initialFATOffset = bootSector->BPB_RsvdSecCnt * bootSector->BPB_BytsPerSec;                               // The offset at which we will start reading (the position of the first fat cluster)
-
-    u_int16_t clusterList[bootSector->BPB_FATSz16];                                                                 // A list for the FAT clusters, size from the FAT Size stored in the boot sector
-    size_t clusterCount = 0;                                                                                           // Counter for the amount of clusters read from the file
+    size_t clusterCount = 0;                                                                                        // Counter for the amount of clusters read from the file
+    u_int16_t FATArray[bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec/2];                                     // Array for the first FAT
 
 
     printf("Offset for first FAT byte: %d\n", initialFATOffset); // debug - Print the FAT offset to monitor the functions read start point
+    bytesRead = readBytes(fd, filename, initialFATOffset, FATArray, bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec);
 
-    printf("Retrieved from file: ");
-    // Get the first unusable cluster
-    bytesRead = bytesRead = readBytes(fd, filename, initialFATOffset, &retrievedCluster, sizeof(u_int16_t));
-    clusterList[clusterCount] = retrievedCluster;
-    clusterCount++;
-    printf("%04X (unusable) - ", retrievedCluster);
-    // Go to the position provided by Cluster 1 and read CLuster 2
-    bytesRead = bytesRead = readBytes(fd, filename, initialFATOffset + retrievedCluster, &retrievedCluster, sizeof(u_int16_t));
-    clusterList[clusterCount] = retrievedCluster;
-    clusterCount++;
-    printf("%04X - ", retrievedCluster);
-    // Start loop to go to each subsequent cluster position until 0x0000 or a value greater than 0xFFF8
-    while (retrievedCluster < 0xFFF8) {
-        bytesRead = readBytes(fd, filename, initialFATOffset + retrievedCluster, &retrievedCluster, sizeof(u_int16_t));
-        clusterList[clusterCount] = retrievedCluster;
-        clusterCount++;
-        if (retrievedCluster >=  0xFFF8) {
-            printf("%04X (EOF)\n", retrievedCluster);
-        } else {
-            printf("%04X - ", retrievedCluster);
+    printf("First cluster list: ");
+    for (size_t i = 6; i < bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec/2; i++)
+    {
+        if (FATArray[i] >= 0xFFF8) {
+            printf("%04X\n", FATArray[i]);
+            break;
         }
+        printf("%04X - ", FATArray[i]);
     }
-
-    printf("clusterList Contains: ");
-    for (size_t i = 0; i < clusterCount; i++)
-    {
-        printf("%04X, ", clusterList[i]);
-    }
-    printf("\n");
-    printf("clusterList Contains (decimal): ");
-    for (size_t i = 0; i < clusterCount; i++)
-    {
-        printf("%d, ", clusterList[i]);
-    }
-    printf("\n");
-
-
+    
     printf("\n");
 }
 
 // Task 4
 void listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize) {
-    ssize_t bytesRead;
-    off_t rootDIROffset = (bootSector->BPB_RsvdSecCnt + (bootSector->BPB_NumFATs * bootSector->BPB_FATSz16)) * bootSector->BPB_BytsPerSec;
-    char directoryBuffer[32];
-
     typedef struct __attribute__ ((__packed__)) {
         u_int8_t DIR_Name[ 11 ];             // Non zero terminated string
         u_int8_t DIR_Attr;                   // File attributes
@@ -166,40 +128,47 @@ void listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSector
         u_int32_t DIR_FileSize;              // File size in bytes
     } DirectoryEntry;
 
+    ssize_t bytesRead;
+    off_t rootDIROffset = (bootSector->BPB_RsvdSecCnt + (bootSector->BPB_NumFATs * bootSector->BPB_FATSz16)) * bootSector->BPB_BytsPerSec;
+    char directoryBuffer[32];
+    DirectoryEntry *directories[bootSector->BPB_RootEntCnt];
 
-    DirectoryEntry dirEntry1;
-    bytesRead = readBytes(fd, filename, rootDIROffset, &dirEntry1, sizeof(DirectoryEntry));
-
-
-    for (size_t i = 0; i < sizeof(dirEntry1.DIR_Name); i++)
+    for (size_t i = 0; i < bootSector->BPB_RootEntCnt; i++)
     {
-        printf("%c", dirEntry1.DIR_Name[i]);
+        DirectoryEntry directory;
+        bytesRead = readBytes(fd, filename, rootDIROffset, &i, sizeof(DirectoryEntry));
+        directories[i] = &directory;
     }
-    printf("\n");
-    printf("DIR_Attr: %08X\n", dirEntry1.DIR_Attr);
-    printf("DIR_NTRes: %08X\n", dirEntry1.DIR_NTRes);   
-    printf("DIR_CrtTimeTenth: %08X\n", dirEntry1.DIR_CrtTimeTenth);
-    printf("DIR_CrtTime: %08X\n", dirEntry1.DIR_CrtTime);
-    printf("DIR_CrtDate: %08X\n", dirEntry1.DIR_CrtDate);
-    printf("DIR_LstAccDate: %08X\n", dirEntry1.DIR_LstAccDate);
-    printf("DIR_FstClusHI: %08X\n", dirEntry1.DIR_FstClusHI);
-    printf("DIR_WrtTime: %08X\n", dirEntry1.DIR_WrtTime);
-    printf("DIR_WrtDate: %08X\n", dirEntry1.DIR_WrtDate);
-    printf("DIR_FstClusLO: %08X\n", dirEntry1.DIR_FstClusLO);
-    printf("DIR_FileSize: %08X\n", dirEntry1.DIR_FileSize);
 
 
-    /*
-        For each file, output:
-        - First/Starting Cluster
-        - Last modified (Time and Date)
-        - File attributes (single letter for each, hyphen for unset flag)
-        - File length
-        - Filename
+    for (size_t i = 0; i < sizeof(directories); i++)
+    {
+        for (size_t j = 0; j < sizeof(directories[i]->DIR_Name); i++) {
+            printf("%c", directories[i]->DIR_Name[j]);
+        }
+        printf("\n");
+        printf("DIR_Attr: %08X\n", directories[i]->DIR_Attr);
+        printf("DIR_NTRes: %08X\n", directories[i]->DIR_NTRes);
+        printf("DIR_CrtTimeTenth: %08X\n", directories[i]->DIR_CrtTimeTenth);
+        printf("DIR_CrtTime: %08X\n", directories[i]->DIR_CrtTime);
+        printf("DIR_CrtDate: %08X\n", directories[i]->DIR_CrtDate);
+        printf("DIR_LstAccDate: %08X\n", directories[i]->DIR_LstAccDate);
+        printf("DIR_FstClusHI: %08X\n", directories[i]->DIR_FstClusHI);
+        printf("DIR_WrtTime: %08X\n", directories[i]->DIR_WrtTime);
+        printf("DIR_WrtDate: %08X\n", directories[i]->DIR_WrtDate);
+        printf("DIR_FstClusLO: %08X\n", directories[i]->DIR_FstClusLO);
+        printf("DIR_FileSize: %08X\n", directories[i]->DIR_FileSize);
+    }
 
-        !! (Formatted neatly in columns) !!
-    */
+    
 
+    // DirectoryEntry dirEntry1;
+    // bytesRead = readBytes(fd, filename, rootDIROffset, &dirEntry1, sizeof(DirectoryEntry));
+    // directories[0] = &dirEntry1;
+
+    // DirectoryEntry dirEntry2;
+    // bytesRead = readBytes(fd, filename, rootDIROffset+32, &dirEntry2, sizeof(DirectoryEntry));
+    // directories[1] = &dirEntry2;
 }
 
 
@@ -222,6 +191,16 @@ int main() {
 
 
     // Task 4
+    /*
+        For each file, output:
+        - First/Starting Cluster
+        - Last modified (Time and Date)
+        - File attributes (single letter for each, hyphen for unset flag)
+        - File length
+        - Filename
+
+        !! (Formatted neatly in columns) !!
+    */
     printf("Task 4\n");
     listFiles(fd, filename, &bootSector, bootSectorSize);           // Output a list of files in the root directory
 
