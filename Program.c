@@ -145,21 +145,24 @@ void listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSector
 
     for (size_t i = 0; i < sizeof(directories); i++)
     {
-        for (size_t j = 0; j < sizeof(directories[i]->DIR_Name); j++) {
+        if (directories[i]->DIR_Attr != 0x000F) { // make sure that ignored entries with all 0-3 bits set are not printed (they are still stored though which may be an issue)
+            for (size_t j = 0; j < sizeof(directories[i]->DIR_Name); j++) {
             printf("%c", directories[i]->DIR_Name[j]);
+            }
+            printf("\n");
+            printf("DIR_Attr: %04X\n", directories[i]->DIR_Attr);
+            printf("DIR_NTRes: %04X\n", directories[i]->DIR_NTRes);
+            printf("DIR_CrtTimeTenth: %04X\n", directories[i]->DIR_CrtTimeTenth);
+            printf("DIR_CrtTime: %04X\n", directories[i]->DIR_CrtTime);
+            printf("DIR_CrtDate: %04X\n", directories[i]->DIR_CrtDate);
+            printf("DIR_LstAccDate: %04X\n", directories[i]->DIR_LstAccDate);
+            printf("DIR_FstClusHI: %04X\n", directories[i]->DIR_FstClusHI);
+            printf("DIR_WrtTime: %04X\n", directories[i]->DIR_WrtTime);
+            printf("DIR_WrtDate: %04X\n", directories[i]->DIR_WrtDate);
+            printf("DIR_FstClusLO: %04X\n", directories[i]->DIR_FstClusLO);
+            printf("DIR_FileSize: %04X\n", directories[i]->DIR_FileSize);
+            printf("\n");
         }
-        printf("\n");
-        printf("DIR_Attr: %08X\n", directories[i]->DIR_Attr);
-        printf("DIR_NTRes: %08X\n", directories[i]->DIR_NTRes);
-        printf("DIR_CrtTimeTenth: %08X\n", directories[i]->DIR_CrtTimeTenth);
-        printf("DIR_CrtTime: %08X\n", directories[i]->DIR_CrtTime);
-        printf("DIR_CrtDate: %08X\n", directories[i]->DIR_CrtDate);
-        printf("DIR_LstAccDate: %08X\n", directories[i]->DIR_LstAccDate);
-        printf("DIR_FstClusHI: %08X\n", directories[i]->DIR_FstClusHI);
-        printf("DIR_WrtTime: %08X\n", directories[i]->DIR_WrtTime);
-        printf("DIR_WrtDate: %08X\n", directories[i]->DIR_WrtDate);
-        printf("DIR_FstClusLO: %08X\n", directories[i]->DIR_FstClusLO);
-        printf("DIR_FileSize: %08X\n", directories[i]->DIR_FileSize);
     }
 }
 
@@ -173,12 +176,12 @@ int main() {
 
 
     // Task 2
-    printf("Task 2\n");
+    printf("--- Task 2 ---\n");
     printFields(fd, filename, &bootSector, bootSectorSize);         // Print all fields of the boot sector
 
 
     // Task 3
-    printf("Task 3\n");
+    printf("--- Task 3 ---\n");
     produceClusters(fd, filename, &bootSector, bootSectorSize);     // Load a copy of first FAT into memory, and print an ordered list of clusters
 
 
@@ -193,7 +196,7 @@ int main() {
 
         !! (Formatted neatly in columns) !!
     */
-    printf("Task 4\n");
+    printf("--- Task 4 ---\n");
     listFiles(fd, filename, &bootSector, bootSectorSize);           // Output a list of files in the root directory
 
 
