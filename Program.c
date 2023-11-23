@@ -29,6 +29,21 @@ typedef struct __attribute__((__packed__)) {
     u_int8_t BS_FilSysType[ 8 ];    // e.g. 'FAT16 ' (Not 0 term.)
 } BootSector;
 
+// Print u_int16_t values in binary
+void printBinary16(int x) {
+    for (int i = 0; i < 16; i++) {
+        printf("%d", (x & 0x8000) >> 15);
+        x <<= 1;
+    }
+}
+// Print u_int8_t values in binary
+void printBinary8(int x) {
+    for (int i = 0; i < 8; i++) {
+        printf("%d", (x & 0x8000) >> 15);
+        x <<= 1;
+    }
+}
+
 // Task 1
 ssize_t readBytes(int fd, char *filename, off_t offset, char *buffer, ssize_t bytesToRead) {
     fd = open(filename, O_RDONLY);                  // Open file
@@ -162,6 +177,8 @@ void listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSector
             printf("DIR_WrtDate: %04X\n", directories[i]->DIR_WrtDate);
             printf("DIR_FstClusLO: %04X\n", directories[i]->DIR_FstClusLO);
             printf("DIR_FileSize: %04X\n", directories[i]->DIR_FileSize);
+            printf("\n");
+            printBinary16(directories[i]->DIR_CrtDate);
             printf("\n");
         }
     }
