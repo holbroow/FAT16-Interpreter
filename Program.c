@@ -142,14 +142,12 @@ void listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSector
         u_int32_t DIR_FileSize;              // File size in bytes
     } DirectoryEntry;
 
+    size_t numOfEntries = bootSector->BPB_RootEntCnt / sizeof(DirectoryEntry);
     ssize_t bytesRead;
     off_t rootDIROffset = (bootSector->BPB_RsvdSecCnt + (bootSector->BPB_NumFATs * bootSector->BPB_FATSz16)) * bootSector->BPB_BytsPerSec;
     char directoryBuffer[32];
-    //DirectoryEntry *directories[bootSector->BPB_RootEntCnt];
     DirectoryEntry **directories = malloc(bootSector->BPB_RootEntCnt * sizeof(DirectoryEntry *));
-    size_t numOfEntries = bootSector->BPB_RootEntCnt / sizeof(DirectoryEntry);
 
- 
     for (size_t i = 0; i < numOfEntries; i++)
     {
         //DirectoryEntry entry1;
@@ -157,30 +155,21 @@ void listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSector
         bytesRead = readBytes(fd, filename, rootDIROffset + (i*32), entry, sizeof(DirectoryEntry));
         directories[i] = entry;
     }
-    /*
-        - First/Starting Cluster
-        - Last modified (Time and Date)
-        - File attributes (single letter for each, hyphen for unset flag)
-        - File length
-        - Filename
-    */
 
+    // Temporary Old Print Formatting (debug)
     for (size_t i = 0; i < sizeof(directories); i++)
     {
         if (directories[i]->DIR_Attr != 0x000F) { // make sure that ignored entries with all 0-3 bits set are not printed (they are still stored though which may be an issue)
             // File Name
-            for (size_t j = 0; j < sizeof(directories[i]->DIR_Name); j++) {
-                printf("%c", directories[i]->DIR_Name[j]);
-            }
-            printf("\n");
+            printf("DIR_Name: %s\n", directories[i]->DIR_Name);
             // File Attributes
             printf("DIR_Attr: ");
-            printf("%c", (directories[i]->DIR_Attr & 0x01) ? 'R' : '-'); // Bit 0
-            printf("%c", (directories[i]->DIR_Attr & 0x02) ? 'H' : '-'); // Bit 1
-            printf("%c", (directories[i]->DIR_Attr & 0x04) ? 'S' : '-'); // Bit 2
-            printf("%c", (directories[i]->DIR_Attr & 0x08) ? 'V' : '-'); // Bit 3
-            printf("%c", (directories[i]->DIR_Attr & 0x10) ? 'D' : '-'); // Bit 4
             printf("%c", (directories[i]->DIR_Attr & 0x20) ? 'A' : '-'); // Bit 5
+            printf("%c", (directories[i]->DIR_Attr & 0x10) ? 'D' : '-'); // Bit 4
+            printf("%c", (directories[i]->DIR_Attr & 0x08) ? 'V' : '-'); // Bit 3
+            printf("%c", (directories[i]->DIR_Attr & 0x04) ? 'S' : '-'); // Bit 2
+            printf("%c", (directories[i]->DIR_Attr & 0x02) ? 'H' : '-'); // Bit 1
+            printf("%c", (directories[i]->DIR_Attr & 0x01) ? 'R' : '-'); // Bit 0
             printf("\n");
             // Cluster Info
             printf("DIR_FstClusLO: %04X\n", directories[i]->DIR_FstClusLO);
@@ -188,13 +177,42 @@ void listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSector
             // Write Date and Time
             printf("DIR_WrtDate + DIR_WrtTime: %04d-%02d-%02d  %02d-%02d-%02d\n", (((directories[i]->DIR_WrtDate >> 9) & 0x7F) + 1980), ((directories[i]->DIR_WrtDate >> 5) & 0xF), (directories[i]->DIR_WrtDate & 0x1F), ((directories[i]->DIR_WrtTime >> 11) & 0x1F), ((directories[i]->DIR_WrtTime >> 5) & 0x3F), (directories[i]->DIR_WrtTime & 0x1F)); // Formatted to YYYY-MM-DD
             // File Size
-            printf("DIR_FileSize: %04X\n", directories[i]->DIR_FileSize);
+            printf("DIR_FileSize: %d bytes\n", directories[i]->DIR_FileSize);
             printf("\n\n");
+        }
+    }
+
+    // Formatted print into columns
+    for (size_t i = 0; i < sizeof(directories); i++) {
+        if (directories[i]->DIR_Attr != 0x000F) {
+            // File Name
+            printf("%-20s", directories[i]->DIR_Name + '\0');
+            // Date and Time
+            printf("%02d-%02d-%02d %02d:%02d:%02d",
+                (((directories[i]->DIR_WrtDate >> 9) & 0x7F) + 1980),
+                ((directories[i]->DIR_WrtDate >> 5) & 0xF),
+                (directories[i]->DIR_WrtDate & 0x1F),
+                ((directories[i]->DIR_WrtTime >> 11) & 0x1F),
+                ((directories[i]->DIR_WrtTime >> 5) & 0x3F),
+                (directories[i]->DIR_WrtTime & 0x1F));
+            // Attributes
+            printf("%15c%c%c%c%c%c",
+                (directories[i]->DIR_Attr & 0x20) ? 'A' : '-',
+                (directories[i]->DIR_Attr & 0x10) ? 'D' : '-',
+                (directories[i]->DIR_Attr & 0x08) ? 'V' : '-',
+                (directories[i]->DIR_Attr & 0x04) ? 'S' : '-',
+                (directories[i]->DIR_Attr & 0x02) ? 'H' : '-',
+                (directories[i]->DIR_Attr & 0x01) ? 'R' : '-');
+            // File Length
+            printf("%12d bytes\n", directories[i]->DIR_FileSize);
         }
     }
 }
 
-
+// Task 5
+void openFile(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize) {
+    
+}
 
 int main() {
     int fd;                                         // The file descriptor
@@ -214,18 +232,12 @@ int main() {
 
 
     // Task 4
-    /*
-        For each file, output:
-        - First/Starting Cluster
-        - Last modified (Time and Date)
-        - File attributes (single letter for each, hyphen for unset flag)
-        - File length
-        - Filename
-
-        !! (Formatted neatly in columns) !!
-    */
     printf("--- Task 4 ---\n");
     listFiles(fd, filename, &bootSector, bootSectorSize);           // Output a list of files in the root directory
 
+
+    // Task 5
+    printf("--- Task 5 ---\n");
+    openFile(fd, filename, &bootSector, bootSectorSize);            // Output the contents of a chosen file from a directory
 
 }
