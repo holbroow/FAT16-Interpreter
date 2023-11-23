@@ -44,6 +44,7 @@ void printBinary8(int x) {
     }
 }
 
+
 // Task 1
 ssize_t readBytes(int fd, char *filename, off_t offset, char *buffer, ssize_t bytesToRead) {
     fd = open(filename, O_RDONLY);                  // Open file
@@ -72,7 +73,7 @@ void printFields(int fd, char *filename, BootSector *bootSector, size_t bootSect
         printf("%d ", bootSector->BS_OEMName[i]);
     }
     printf("\n");
-    printf("BPB_BytsPerSec: %d\n", bootSector->BPB_BytsPerSec); // maybe an issue here
+    printf("BPB_BytsPerSec: %d\n", bootSector->BPB_BytsPerSec);
     printf("BPB_SecPerClus: %d\n", bootSector->BPB_SecPerClus);
     printf("BPB_RsvdSecCnt: %d\n", bootSector->BPB_RsvdSecCnt);
     printf("BPB_NumFATs: %d\n", bootSector->BPB_NumFATs);
@@ -103,8 +104,6 @@ void printFields(int fd, char *filename, BootSector *bootSector, size_t bootSect
 // Task 3
 void produceClusters(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize) {
     ssize_t bytesRead;                                                                                              // How many bytes were actually read from the file
-    u_int16_t retrievedCluster;                                                                                     // The first cluster of the FAT
-    u_int16_t previousCluster;                                                                                      // The most recent cluster retrieved from the file
     off_t initialFATOffset = bootSector->BPB_RsvdSecCnt * bootSector->BPB_BytsPerSec;                               // The offset at which we will start reading (the position of the first fat cluster)
     size_t clusterCount = 0;                                                                                        // Counter for the amount of clusters read from the file
     u_int16_t FATArray[bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec/2];                                     // Array for the first FAT
@@ -158,28 +157,39 @@ void listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSector
         bytesRead = readBytes(fd, filename, rootDIROffset + (i*32), entry, sizeof(DirectoryEntry));
         directories[i] = entry;
     }
+    /*
+        - First/Starting Cluster
+        - Last modified (Time and Date)
+        - File attributes (single letter for each, hyphen for unset flag)
+        - File length
+        - Filename
+    */
 
     for (size_t i = 0; i < sizeof(directories); i++)
     {
         if (directories[i]->DIR_Attr != 0x000F) { // make sure that ignored entries with all 0-3 bits set are not printed (they are still stored though which may be an issue)
+            // File Name
             for (size_t j = 0; j < sizeof(directories[i]->DIR_Name); j++) {
-            printf("%c", directories[i]->DIR_Name[j]);
+                printf("%c", directories[i]->DIR_Name[j]);
             }
             printf("\n");
-            printf("DIR_Attr: %04X\n", directories[i]->DIR_Attr);
-            printf("DIR_NTRes: %04X\n", directories[i]->DIR_NTRes);
-            printf("DIR_CrtTimeTenth: %04X\n", directories[i]->DIR_CrtTimeTenth);
-            printf("DIR_CrtTime: %04X\n", directories[i]->DIR_CrtTime);
-            printf("DIR_CrtDate: %04X\n", directories[i]->DIR_CrtDate);
-            printf("DIR_LstAccDate: %04X\n", directories[i]->DIR_LstAccDate);
-            printf("DIR_FstClusHI: %04X\n", directories[i]->DIR_FstClusHI);
-            printf("DIR_WrtTime: %04X\n", directories[i]->DIR_WrtTime);
-            printf("DIR_WrtDate: %04X\n", directories[i]->DIR_WrtDate);
+            // File Attributes
+            printf("DIR_Attr: ");
+            printf("%c", (directories[i]->DIR_Attr & 0x01) ? 'R' : '-'); // Bit 0
+            printf("%c", (directories[i]->DIR_Attr & 0x02) ? 'H' : '-'); // Bit 1
+            printf("%c", (directories[i]->DIR_Attr & 0x04) ? 'S' : '-'); // Bit 2
+            printf("%c", (directories[i]->DIR_Attr & 0x08) ? 'V' : '-'); // Bit 3
+            printf("%c", (directories[i]->DIR_Attr & 0x10) ? 'D' : '-'); // Bit 4
+            printf("%c", (directories[i]->DIR_Attr & 0x20) ? 'A' : '-'); // Bit 5
+            printf("\n");
+            // Cluster Info
             printf("DIR_FstClusLO: %04X\n", directories[i]->DIR_FstClusLO);
+            printf("DIR_FstClusHI: %04X\n", directories[i]->DIR_FstClusHI);
+            // Write Date and Time
+            printf("DIR_WrtDate + DIR_WrtTime: %04d-%02d-%02d  %02d-%02d-%02d\n", (((directories[i]->DIR_WrtDate >> 9) & 0x7F) + 1980), ((directories[i]->DIR_WrtDate >> 5) & 0xF), (directories[i]->DIR_WrtDate & 0x1F), ((directories[i]->DIR_WrtTime >> 11) & 0x1F), ((directories[i]->DIR_WrtTime >> 5) & 0x3F), (directories[i]->DIR_WrtTime & 0x1F)); // Formatted to YYYY-MM-DD
+            // File Size
             printf("DIR_FileSize: %04X\n", directories[i]->DIR_FileSize);
-            printf("\n");
-            //printBinary16(directories[i]->DIR_CrtDate);
-            printf("\n");
+            printf("\n\n");
         }
     }
 }
