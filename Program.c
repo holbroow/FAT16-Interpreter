@@ -159,9 +159,9 @@ void listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSector
         directories[i] = entry;
     }
 
-    for (size_t i = 0; i < numOfEntries; i++)
+    for (size_t i = 0; i < sizeof(directories); i++)
     {
-        if (directories[i]->DIR_Attr != 0x0000) { // make sure that ignored entries with all 0-3 bits set are not printed (they are still stored though which may be an issue)
+        if (directories[i]->DIR_Attr != 0x000F) { // make sure that ignored entries with all 0-3 bits set are not printed (they are still stored though which may be an issue)
             for (size_t j = 0; j < sizeof(directories[i]->DIR_Name); j++) {
             printf("%c", directories[i]->DIR_Name[j]);
             }
@@ -178,7 +178,7 @@ void listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSector
             printf("DIR_FstClusLO: %04X\n", directories[i]->DIR_FstClusLO);
             printf("DIR_FileSize: %04X\n", directories[i]->DIR_FileSize);
             printf("\n");
-            printBinary16(directories[i]->DIR_CrtDate);
+            //printBinary16(directories[i]->DIR_CrtDate);
             printf("\n");
         }
     }
