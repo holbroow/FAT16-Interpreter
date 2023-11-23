@@ -133,9 +133,10 @@ void listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSector
     char directoryBuffer[32];
     //DirectoryEntry *directories[bootSector->BPB_RootEntCnt];
     DirectoryEntry **directories = malloc(bootSector->BPB_RootEntCnt * sizeof(DirectoryEntry *));
+    size_t numOfEntries = bootSector->BPB_RootEntCnt / sizeof(DirectoryEntry);
 
  
-    for (size_t i = 0; i < bootSector->BPB_RootEntCnt; i++)
+    for (size_t i = 0; i < numOfEntries; i++)
     {
         //DirectoryEntry entry1;
         DirectoryEntry *entry = malloc(sizeof(DirectoryEntry));
@@ -143,9 +144,9 @@ void listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSector
         directories[i] = entry;
     }
 
-    for (size_t i = 0; i < sizeof(directories); i++)
+    for (size_t i = 0; i < numOfEntries; i++)
     {
-        if (directories[i]->DIR_Attr != 0x000F) { // make sure that ignored entries with all 0-3 bits set are not printed (they are still stored though which may be an issue)
+        if (directories[i]->DIR_Attr != 0x0000) { // make sure that ignored entries with all 0-3 bits set are not printed (they are still stored though which may be an issue)
             for (size_t j = 0; j < sizeof(directories[i]->DIR_Name); j++) {
             printf("%c", directories[i]->DIR_Name[j]);
             }
