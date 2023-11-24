@@ -81,3 +81,31 @@ printf("%d\n", bootSector->BPB_RsvdSecCnt);
     // printf("%d\n", bootSector->BPB_FATSz16);
     // printf("%d\n", rootDIROffset);
     // printf("\n");
+    
+
+
+// Temporary Old Print Formatting (debug)
+for (size_t i = 0; i < sizeof(directories); i++)
+{
+    if (directories[i]->DIR_Attr != 0x000F) { // make sure that ignored entries with all 0-3 bits set are not printed (they are still stored though which may be an issue)
+        // File Name
+        printf("DIR_Name: %s\n", directories[i]->DIR_Name);
+        // File Attributes
+        printf("DIR_Attr: ");
+        printf("%c", (directories[i]->DIR_Attr & 0x20) ? 'A' : '-'); // Bit 5
+        printf("%c", (directories[i]->DIR_Attr & 0x10) ? 'D' : '-'); // Bit 4
+        printf("%c", (directories[i]->DIR_Attr & 0x08) ? 'V' : '-'); // Bit 3
+        printf("%c", (directories[i]->DIR_Attr & 0x04) ? 'S' : '-'); // Bit 2
+        printf("%c", (directories[i]->DIR_Attr & 0x02) ? 'H' : '-'); // Bit 1
+        printf("%c", (directories[i]->DIR_Attr & 0x01) ? 'R' : '-'); // Bit 0
+        printf("\n");
+        // Cluster Info
+        printf("DIR_FstClusLO: %04X\n", directories[i]->DIR_FstClusLO);
+        printf("DIR_FstClusHI: %04X\n", directories[i]->DIR_FstClusHI);
+        // Write Date and Time
+        printf("DIR_WrtDate + DIR_WrtTime: %04d-%02d-%02d  %02d-%02d-%02d\n", (((directories[i]->DIR_WrtDate >> 9) & 0x7F) + 1980), ((directories[i]->DIR_WrtDate >> 5) & 0xF), (directories[i]->DIR_WrtDate & 0x1F), ((directories[i]->DIR_WrtTime >> 11) & 0x1F), ((directories[i]->DIR_WrtTime >> 5) & 0x3F), (directories[i]->DIR_WrtTime & 0x1F)); // Formatted to YYYY-MM-DD
+        // File Size
+        printf("DIR_FileSize: %d bytes\n", directories[i]->DIR_FileSize);
+        printf("\n\n");
+    }
+}
