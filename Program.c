@@ -84,11 +84,7 @@ void printFields(int fd, char *filename, BootSector *bootSector, size_t bootSect
         printf("%d ", bootSector->BS_jmpBoot[i]);
     }
     printf("\n");
-    printf("BS_OEMName: ");
-    for (size_t i = 0; i < sizeof(bootSector->BS_OEMName); i++) {
-        printf("%d ", bootSector->BS_OEMName[i]);
-    }
-    printf("\n");
+    printf("BS_OEMName: %s\n", bootSector->BS_OEMName);
     printf("BPB_BytsPerSec: %d\n", bootSector->BPB_BytsPerSec);
     printf("BPB_SecPerClus: %d\n", bootSector->BPB_SecPerClus);
     printf("BPB_RsvdSecCnt: %d\n", bootSector->BPB_RsvdSecCnt);
@@ -105,16 +101,10 @@ void printFields(int fd, char *filename, BootSector *bootSector, size_t bootSect
     printf("BS_Reserved1: %d\n", bootSector->BS_Reserved1);
     printf("BS_BootSig: %d\n", bootSector->BS_BootSig);
     printf("BS_VolID: %d\n", bootSector->BS_VolID);
-    printf("BS_VolLab: ");
-    for (size_t i = 0; i < sizeof(bootSector->BS_VolLab); i++) {
-        printf("%d ", bootSector->BS_VolLab[i]);
-    }
+    printf("BS_VolLab: %s\n", bootSector->BS_VolLab);
+    printf("BS_FilSysType: %s\n", bootSector->BS_FilSysType);
+    
     printf("\n");
-    printf("BS_FilSysType: ");
-    for (size_t i = 0; i < sizeof(bootSector->BS_FilSysType); i++) {
-        printf("%d ", bootSector->BS_FilSysType[i]);
-    }
-    printf("\n\n");
 }
 
 // Task 3
@@ -152,33 +142,35 @@ void produceClusters(int fd, char *filename, BootSector *bootSector, size_t boot
 
 // Task 4
 DirectoryEntry** listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize) {
-    size_t numOfEntries = bootSector->BPB_RootEntCnt / sizeof(DirectoryEntry);
     ssize_t bytesRead;
+    size_t numOfEntries = bootSector->BPB_RootEntCnt;
     off_t rootDIROffset = (bootSector->BPB_RsvdSecCnt + (bootSector->BPB_NumFATs * bootSector->BPB_FATSz16)) * bootSector->BPB_BytsPerSec;
-    char directoryBuffer[32];
     DirectoryEntry **directories = malloc(bootSector->BPB_RootEntCnt * sizeof(DirectoryEntry *));
 
     for (size_t i = 0; i < numOfEntries; i++)
     {
-        //DirectoryEntry entry1;
         DirectoryEntry *entry = malloc(sizeof(DirectoryEntry));
-        bytesRead = readBytes(fd, filename, rootDIROffset + (i*32), entry, sizeof(DirectoryEntry));
+        bytesRead = readBytes(fd, filename, rootDIROffset + (i*sizeof(DirectoryEntry)), entry, sizeof(DirectoryEntry));
         directories[i] = entry;
     }
 
     // Formatted print into columns
-    for (size_t i = 0; i < sizeof(directories); i++) {
-        if (directories[i]->DIR_Attr != 0x000F) {
+    for (size_t i = 0; i < numOfEntries; i++) {
+        if ((directories[i]->DIR_Name[7] != 0x00 && directories[i]->DIR_Name[7] != 0xE5) && directories[i]->DIR_Attr != 0x000F) {
+            // Entry ID
+            printf("%d", i);
             // File Name
-            printf("%-20s", directories[i]->DIR_Name + '\0');
+            printf("%20s", directories[i]->DIR_Name + '\0');
+
             // Date and Time
-            printf("%02d-%02d-%02d %02d:%02d:%02d",
+            printf("           %02d-%02d-%02d %02d:%02d:%02d",
                 (((directories[i]->DIR_WrtDate >> 9) & 0x7F) + 1980),
                 ((directories[i]->DIR_WrtDate >> 5) & 0xF),
                 (directories[i]->DIR_WrtDate & 0x1F),
                 ((directories[i]->DIR_WrtTime >> 11) & 0x1F),
                 ((directories[i]->DIR_WrtTime >> 5) & 0x3F),
                 (directories[i]->DIR_WrtTime & 0x1F));
+            
             // Attributes
             printf("%15c%c%c%c%c%c",
                 (directories[i]->DIR_Attr & 0x20) ? 'A' : '-',
@@ -187,8 +179,13 @@ DirectoryEntry** listFiles(int fd, char *filename, BootSector *bootSector, size_
                 (directories[i]->DIR_Attr & 0x04) ? 'S' : '-',
                 (directories[i]->DIR_Attr & 0x02) ? 'H' : '-',
                 (directories[i]->DIR_Attr & 0x01) ? 'R' : '-');
+            
+            // CLuster Info
+            u_int32_t fullFstCluster = (((u_int32_t)directories[i]->DIR_FstClusHI << 16) +  directories[i]->DIR_FstClusLO);
+            printf("              %08X", fullFstCluster);
+        
             // File Length
-            printf("%12d bytes\n", directories[i]->DIR_FileSize);
+            printf("%18d bytes\n", directories[i]->DIR_FileSize);
         }
     }
     printf("\n");
@@ -197,7 +194,10 @@ DirectoryEntry** listFiles(int fd, char *filename, BootSector *bootSector, size_
 
 // Task 5
 void openFile(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize, DirectoryEntry **pDirectories) {
-    
+    DirectoryEntry chosenFile;
+    memcpy(*chosenFile, pDirectories[18], sizeof(DirectoryEntry))
+
+    printf("%s\n", chosenFile[18].DIR_Name);
 }
 
 int main() {
@@ -205,7 +205,7 @@ int main() {
     char filename[] = "fat16.img";                  // The fat16 image filename
     BootSector bootSector;                          // Struct of BootSector field
     size_t bootSectorSize = sizeof(bootSector);     // Size of BootSector in bytes
-    DirectoryEntry** pDirectories;
+    DirectoryEntry** pDirectories;                  // Pointer to the DirectoryEntry pointer array (to access the root dir in other functions)
 
     // Task 2
     printf("--- Task 2 ---\n");
