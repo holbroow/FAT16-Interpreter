@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdbool.h>
 
 typedef struct __attribute__((__packed__)) {
     u_int8_t BS_jmpBoot[ 3 ];       // x86 jump instr. to boot code
@@ -122,26 +123,35 @@ void produceClusters(int fd, char *filename, BootSector *bootSector, size_t boot
     off_t initialFATOffset = bootSector->BPB_RsvdSecCnt * bootSector->BPB_BytsPerSec;                               // The offset at which we will start reading (the position of the first fat cluster)
     size_t clusterCount = 0;                                                                                        // Counter for the amount of clusters read from the file
     u_int16_t FATArray[bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec/2];                                     // Array for the first FAT
+    bool firstFound = false;
 
 
     printf("Offset for first FAT byte: %d\n", initialFATOffset); // debug - Print the FAT offset to monitor the functions read start point
     bytesRead = readBytes(fd, filename, initialFATOffset, FATArray, bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec);
 
     printf("First cluster list: ");
-    for (size_t i = 6; i < bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec/2; i++)
+    for (size_t i = 0; i < bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec/2; i++)
     {
-        if (FATArray[i] >= 0xFFF8) {
-            printf("%04X\n", FATArray[i]);
-            break;
+        if (!firstFound && (FATArray[i] == 0000 || FATArray[i] >= 0xFFF8)) {
+            //ignore value
+        } else {
+            if (FATArray[i] < 0xFFF8) {
+                printf("%04X -", FATArray[i]);
+                if(!firstFound) {
+                    firstFound = true;
+                }
+            } else {
+                printf("%04X\n", FATArray[i]);
+                break;
+            }
         }
-        printf("%04X - ", FATArray[i]);
     }
     
-    printf("\n");
+    printf("\n\n");
 }
 
 // Task 4
-void listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize) {
+DirectoryEntry** listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize) {
     size_t numOfEntries = bootSector->BPB_RootEntCnt / sizeof(DirectoryEntry);
     ssize_t bytesRead;
     off_t rootDIROffset = (bootSector->BPB_RsvdSecCnt + (bootSector->BPB_NumFATs * bootSector->BPB_FATSz16)) * bootSector->BPB_BytsPerSec;
@@ -181,13 +191,13 @@ void listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSector
             printf("%12d bytes\n", directories[i]->DIR_FileSize);
         }
     }
-
     printf("\n");
+    return directories;
 }
 
 // Task 5
-void openFile(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize) {
-
+void openFile(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize, DirectoryEntry **pDirectories) {
+    
 }
 
 int main() {
@@ -195,7 +205,7 @@ int main() {
     char filename[] = "fat16.img";                  // The fat16 image filename
     BootSector bootSector;                          // Struct of BootSector field
     size_t bootSectorSize = sizeof(bootSector);     // Size of BootSector in bytes
-
+    DirectoryEntry** pDirectories;
 
     // Task 2
     printf("--- Task 2 ---\n");
@@ -209,12 +219,12 @@ int main() {
 
     // Task 4
     printf("--- Task 4 ---\n");
-    listFiles(fd, filename, &bootSector, bootSectorSize);           // Output a list of files in the root directory
+    pDirectories = listFiles(fd, filename, &bootSector, bootSectorSize);           // Output a list of files in the root directory
 
 
     // Task 5
     printf("--- Task 5 ---\n");
-    openFile(fd, filename, &bootSector, bootSectorSize);            // Output the contents of a chosen file from a directory
-    // !!! Can't do this task until i figure out how to give openFile() access to listFiles DirectoryEntry pointer array !!!
+    openFile(fd, filename, &bootSector, bootSectorSize, pDirectories);            // Output the contents of a chosen file from a directory
+
 
 }
