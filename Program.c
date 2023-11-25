@@ -45,14 +45,14 @@ typedef struct __attribute__ ((__packed__)) {
     u_int32_t DIR_FileSize;              // File size in bytes
 } DirectoryEntry;
 
-// Print u_int16_t values in binary
+// Print u_int16_t values in binary (unused)
 void printBinary16(int x) {
     for (int i = 0; i < 16; i++) {
         printf("%d", (x & 0x8000) >> 15);
         x <<= 1;
     }
 }
-// Print u_int8_t values in binary
+// Print u_int8_t values in binary (unused)
 void printBinary8(int x) {
     for (int i = 0; i < 8; i++) {
         printf("%d", (x & 0x8000) >> 15);
@@ -194,10 +194,30 @@ DirectoryEntry** listFiles(int fd, char *filename, BootSector *bootSector, size_
 
 // Task 5
 void openFile(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize, DirectoryEntry **pDirectories) {
+    int chosenFileID;
     DirectoryEntry chosenFile;
-    memcpy(*chosenFile, pDirectories[18], sizeof(DirectoryEntry))
+    off_t chosenFileOffset;
+    ssize_t chosenFileSize;
+    u_int32_t startingCluster;
+    ssize_t bytesRead;
+    
+    // Get chosen file ID from user
+    printf("Please enter the file to display: ");
+    scanf("%d", &chosenFileID);
 
-    printf("%s\n", chosenFile[18].DIR_Name);
+    // Copy chosen file into local struct instance and grab the file size and starting cluster
+    memcpy(&chosenFile, pDirectories[chosenFileID], sizeof(DirectoryEntry));
+    chosenFileSize = chosenFile.DIR_FileSize;
+    startingCluster = (((u_int32_t)chosenFile.DIR_FstClusHI << 16) +  chosenFile.DIR_FstClusLO);
+
+    // Calculate the file's offset in the image
+    chosenFileOffset = (bootSector->BPB_RsvdSecCnt + (bootSector->BPB_NumFATs * bootSector->BPB_FATSz16)) * bootSector->BPB_BytsPerSec;
+    chosenFileOffset += ((startingCluster + 2 + (2 * sizeof(u_int16_t))) * (bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec));
+
+    // Print the file contents until end of file
+    char buffer[chosenFileSize];
+    bytesRead = readBytes(fd, filename, chosenFileOffset, buffer, chosenFileSize);
+    printf("File '%s' contains:\n%s",chosenFile.DIR_Name, buffer);
 }
 
 int main() {
@@ -206,6 +226,7 @@ int main() {
     BootSector bootSector;                          // Struct of BootSector field
     size_t bootSectorSize = sizeof(bootSector);     // Size of BootSector in bytes
     DirectoryEntry** pDirectories;                  // Pointer to the DirectoryEntry pointer array (to access the root dir in other functions)
+
 
     // Task 2
     printf("--- Task 2 ---\n");
