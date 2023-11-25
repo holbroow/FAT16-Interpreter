@@ -145,55 +145,55 @@ DirectoryEntry** listFiles(int fd, char *filename, BootSector *bootSector, size_
     ssize_t bytesRead;
     size_t numOfEntries = bootSector->BPB_RootEntCnt;
     off_t rootDIROffset = (bootSector->BPB_RsvdSecCnt + (bootSector->BPB_NumFATs * bootSector->BPB_FATSz16)) * bootSector->BPB_BytsPerSec;
-    DirectoryEntry **directories = malloc(bootSector->BPB_RootEntCnt * sizeof(DirectoryEntry *));
+    DirectoryEntry **entries = malloc(bootSector->BPB_RootEntCnt * sizeof(DirectoryEntry *));
 
     for (size_t i = 0; i < numOfEntries; i++)
     {
         DirectoryEntry *entry = malloc(sizeof(DirectoryEntry));
         bytesRead = readBytes(fd, filename, rootDIROffset + (i*sizeof(DirectoryEntry)), entry, sizeof(DirectoryEntry));
-        directories[i] = entry;
+        entries[i] = entry;
     }
 
     // Formatted print into columns
     for (size_t i = 0; i < numOfEntries; i++) {
-        if ((directories[i]->DIR_Name[7] != 0x00 && directories[i]->DIR_Name[7] != 0xE5) && directories[i]->DIR_Attr != 0x000F) {
+        if ((entries[i]->DIR_Name[7] != 0x00 && entries[i]->DIR_Name[7] != 0xE5) && entries[i]->DIR_Attr != 0x000F) {
             // Entry ID
             printf("%d", i);
             // File Name
-            printf("%20s", directories[i]->DIR_Name + '\0');
+            printf("%20s", entries[i]->DIR_Name + '\0');
 
             // Date and Time
             printf("           %02d-%02d-%02d %02d:%02d:%02d",
-                (((directories[i]->DIR_WrtDate >> 9) & 0x7F) + 1980),
-                ((directories[i]->DIR_WrtDate >> 5) & 0xF),
-                (directories[i]->DIR_WrtDate & 0x1F),
-                ((directories[i]->DIR_WrtTime >> 11) & 0x1F),
-                ((directories[i]->DIR_WrtTime >> 5) & 0x3F),
-                (directories[i]->DIR_WrtTime & 0x1F));
+                (((entries[i]->DIR_WrtDate >> 9) & 0x7F) + 1980),
+                ((entries[i]->DIR_WrtDate >> 5) & 0xF),
+                (entries[i]->DIR_WrtDate & 0x1F),
+                ((entries[i]->DIR_WrtTime >> 11) & 0x1F),
+                ((entries[i]->DIR_WrtTime >> 5) & 0x3F),
+                (entries[i]->DIR_WrtTime & 0x1F));
             
             // Attributes
             printf("%15c%c%c%c%c%c",
-                (directories[i]->DIR_Attr & 0x20) ? 'A' : '-',
-                (directories[i]->DIR_Attr & 0x10) ? 'D' : '-',
-                (directories[i]->DIR_Attr & 0x08) ? 'V' : '-',
-                (directories[i]->DIR_Attr & 0x04) ? 'S' : '-',
-                (directories[i]->DIR_Attr & 0x02) ? 'H' : '-',
-                (directories[i]->DIR_Attr & 0x01) ? 'R' : '-');
+                (entries[i]->DIR_Attr & 0x20) ? 'A' : '-',
+                (entries[i]->DIR_Attr & 0x10) ? 'D' : '-',
+                (entries[i]->DIR_Attr & 0x08) ? 'V' : '-',
+                (entries[i]->DIR_Attr & 0x04) ? 'S' : '-',
+                (entries[i]->DIR_Attr & 0x02) ? 'H' : '-',
+                (entries[i]->DIR_Attr & 0x01) ? 'R' : '-');
             
             // CLuster Info
-            u_int32_t fullFstCluster = (((u_int32_t)directories[i]->DIR_FstClusHI << 16) +  directories[i]->DIR_FstClusLO);
+            u_int32_t fullFstCluster = (((u_int32_t)entries[i]->DIR_FstClusHI << 16) +  entries[i]->DIR_FstClusLO);
             printf("              %08X", fullFstCluster);
         
             // File Length
-            printf("%18d bytes\n", directories[i]->DIR_FileSize);
+            printf("%18d bytes\n", entries[i]->DIR_FileSize);
         }
     }
     printf("\n");
-    return directories;
+    return entries;
 }
 
 // Task 5
-void openFile(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize, DirectoryEntry **pDirectories) {
+void openFile(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize, DirectoryEntry **pEntries) {
     int chosenFileID;
     DirectoryEntry chosenFile;
     off_t chosenFileOffset;
@@ -206,7 +206,7 @@ void openFile(int fd, char *filename, BootSector *bootSector, size_t bootSectorS
     scanf("%d", &chosenFileID);
 
     // Copy chosen file into local struct instance and grab the file size and starting cluster
-    memcpy(&chosenFile, pDirectories[chosenFileID], sizeof(DirectoryEntry));
+    memcpy(&chosenFile, pEntries[chosenFileID], sizeof(DirectoryEntry));
     chosenFileSize = chosenFile.DIR_FileSize;
     startingCluster = (((u_int32_t)chosenFile.DIR_FstClusHI << 16) +  chosenFile.DIR_FstClusLO);
 
@@ -220,12 +220,14 @@ void openFile(int fd, char *filename, BootSector *bootSector, size_t bootSectorS
     printf("File '%s' contains:\n%s",chosenFile.DIR_Name, buffer);
 }
 
+
+
 int main() {
     int fd;                                         // The file descriptor
     char filename[] = "fat16.img";                  // The fat16 image filename
     BootSector bootSector;                          // Struct of BootSector field
     size_t bootSectorSize = sizeof(bootSector);     // Size of BootSector in bytes
-    DirectoryEntry** pDirectories;                  // Pointer to the DirectoryEntry pointer array (to access the root dir in other functions)
+    DirectoryEntry** pEntries;                  // Pointer to the DirectoryEntry pointer array (to access the root dir in other functions)
 
 
     // Task 2
@@ -240,12 +242,12 @@ int main() {
 
     // Task 4
     printf("--- Task 4 ---\n");
-    pDirectories = listFiles(fd, filename, &bootSector, bootSectorSize);           // Output a list of files in the root directory
+    pEntries = listFiles(fd, filename, &bootSector, bootSectorSize);           // Output a list of files in the root directory
 
 
     // Task 5
     printf("--- Task 5 ---\n");
-    openFile(fd, filename, &bootSector, bootSectorSize, pDirectories);            // Output the contents of a chosen file from a directory
+    openFile(fd, filename, &bootSector, bootSectorSize, pEntries);            // Output the contents of a chosen file from a directory
 
 
 }
