@@ -140,7 +140,7 @@ void produceClusters(int fd, char *filename, BootSector *bootSector, size_t boot
     printf("\n\n");
 }
 
-// Task 4
+// Task 4 (need to expand for Task 6)
 DirectoryEntry** listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize) {
     ssize_t bytesRead;
     size_t numOfEntries = bootSector->BPB_RootEntCnt;
@@ -156,36 +156,42 @@ DirectoryEntry** listFiles(int fd, char *filename, BootSector *bootSector, size_
 
     // Formatted print into columns
     for (size_t i = 0; i < numOfEntries; i++) {
-        if ((entries[i]->DIR_Name[7] != 0x00 && entries[i]->DIR_Name[7] != 0xE5) && entries[i]->DIR_Attr != 0x000F) {
-            // Entry ID
-            printf("%d", i);
-            // File Name
-            printf("%20s", entries[i]->DIR_Name + '\0');
+        if ((entries[i]->DIR_Name[11] != 0x00 && entries[i]->DIR_Name[11] != 0xE5)) {
+            if (entries[i]->DIR_Attr == 0x000F) { // LONG FILENAME
+                
 
-            // Date and Time
-            printf("           %02d-%02d-%02d %02d:%02d:%02d",
-                (((entries[i]->DIR_WrtDate >> 9) & 0x7F) + 1980),
-                ((entries[i]->DIR_WrtDate >> 5) & 0xF),
-                (entries[i]->DIR_WrtDate & 0x1F),
-                ((entries[i]->DIR_WrtTime >> 11) & 0x1F),
-                ((entries[i]->DIR_WrtTime >> 5) & 0x3F),
-                (entries[i]->DIR_WrtTime & 0x1F));
+            } else if (entries[i]->DIR_Attr != 0x000F) { // SHORT FILENAME
+                // Entry ID
+                printf("%d", i);
+
+                // File Name
+                printf("%20s", entries[i]->DIR_Name + '\0');
+
+                // Date and Time
+                printf("           %02d-%02d-%02d %02d:%02d:%02d",
+                    (((entries[i]->DIR_WrtDate >> 9) & 0x7F) + 1980),
+                    ((entries[i]->DIR_WrtDate >> 5) & 0xF),
+                    (entries[i]->DIR_WrtDate & 0x1F),
+                    ((entries[i]->DIR_WrtTime >> 11) & 0x1F),
+                    ((entries[i]->DIR_WrtTime >> 5) & 0x3F),
+                    (entries[i]->DIR_WrtTime & 0x1F));
+                
+                // Attributes
+                printf("%15c%c%c%c%c%c",
+                    (entries[i]->DIR_Attr & 0x20) ? 'A' : '-',
+                    (entries[i]->DIR_Attr & 0x10) ? 'D' : '-',
+                    (entries[i]->DIR_Attr & 0x08) ? 'V' : '-',
+                    (entries[i]->DIR_Attr & 0x04) ? 'S' : '-',
+                    (entries[i]->DIR_Attr & 0x02) ? 'H' : '-',
+                    (entries[i]->DIR_Attr & 0x01) ? 'R' : '-');
+                
+                // CLuster Info
+                u_int32_t fullFstCluster = (((u_int32_t)entries[i]->DIR_FstClusHI << 16) +  entries[i]->DIR_FstClusLO);
+                printf("              %08X", fullFstCluster);
             
-            // Attributes
-            printf("%15c%c%c%c%c%c",
-                (entries[i]->DIR_Attr & 0x20) ? 'A' : '-',
-                (entries[i]->DIR_Attr & 0x10) ? 'D' : '-',
-                (entries[i]->DIR_Attr & 0x08) ? 'V' : '-',
-                (entries[i]->DIR_Attr & 0x04) ? 'S' : '-',
-                (entries[i]->DIR_Attr & 0x02) ? 'H' : '-',
-                (entries[i]->DIR_Attr & 0x01) ? 'R' : '-');
-            
-            // CLuster Info
-            u_int32_t fullFstCluster = (((u_int32_t)entries[i]->DIR_FstClusHI << 16) +  entries[i]->DIR_FstClusLO);
-            printf("              %08X", fullFstCluster);
-        
-            // File Length
-            printf("%18d bytes\n", entries[i]->DIR_FileSize);
+                // File Length
+                printf("%18d bytes\n", entries[i]->DIR_FileSize);
+            }
         }
     }
     printf("\n");
