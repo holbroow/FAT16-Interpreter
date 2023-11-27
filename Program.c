@@ -217,13 +217,12 @@ void openFile(int fd, char *filename, BootSector *bootSector, size_t bootSectorS
 
     // Calculate the file's offset in the image
     chosenFileOffset = (bootSector->BPB_RsvdSecCnt + (bootSector->BPB_NumFATs * bootSector->BPB_FATSz16)) * bootSector->BPB_BytsPerSec;
-    chosenFileOffset += ((startingCluster + 2 + (2 * sizeof(u_int16_t))) * (bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec));
 
     if (chosenFile.DIR_Attr == 0x10) {
         // handle printing the selected directory
 
     } else {
-        // chosenFileOffset += ((startingCluster + 2 + (2 * sizeof(u_int16_t))) * (bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec));
+        chosenFileOffset += ((startingCluster + 2 + (2 * sizeof(u_int16_t))) * (bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec));
 
         // Print the file contents until end of file
         char buffer[chosenFileSize];
