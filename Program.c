@@ -198,8 +198,7 @@ DirectoryEntry **listFiles(int fd, char *filename, BootSector *bootSector, size_
 }
 
 // Task 5
-void openFile(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize, DirectoryEntry **pEntries)
-{
+void openFile(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize, DirectoryEntry **pEntries) {
     int chosenFileID;
     DirectoryEntry chosenFile;
     off_t chosenFileOffset;
