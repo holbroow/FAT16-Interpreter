@@ -109,3 +109,57 @@ for (size_t i = 0; i < sizeof(directories); i++)
         printf("\n\n");
     }
 }
+
+// // Task 3
+// void produceClusters(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize) {
+//     ssize_t bytesRead;                                                                // How many bytes were actually read from the file
+//     off_t initialFATOffset = bootSector->BPB_RsvdSecCnt * bootSector->BPB_BytsPerSec; // The offset at which we will start reading (the position of the first fat cluster)
+//     size_t clusterCount = 0;                                                          // Counter for the amount of clusters read from the file
+//     u_int16_t FATArray[bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec / 2];     // Array for the first FAT
+//     bool firstFound = false;
+
+//     printf("Offset for first FAT byte: %d\n", initialFATOffset); // debug - Print the FAT offset to monitor the functions read start point
+//     bytesRead = readBytes(fd, filename, initialFATOffset, FATArray, bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec);
+
+//     printf("First cluster list: ");
+    
+
+//     // printf("First cluster list: ");
+//     // for (size_t i = 0; i < bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec / 2; i++) {
+//     //     if (!firstFound && (FATArray[i] == 0000 || FATArray[i] >= 0xFFF8)) {
+//     //         // ignore value
+//     //     }
+//     //     else {
+//     //         if (FATArray[i] < 0xFFF8) {
+//     //             printf("%04X -", FATArray[i]);
+//     //             if (!firstFound) {
+//     //                 firstFound = true;
+//     //             }
+//     //         }
+//     //         else {
+//     //             printf("%04X\n", FATArray[i]);
+//     //             break;
+//     //         }
+//     //     }
+//     // }
+
+//     printf("\n\n");
+// }
+
+
+// Print u_int16_t values in binary (unused)
+void printBinary16(int x) {
+    for (int i = 0; i < 16; i++)
+    {
+        printf("%d", (x & 0x8000) >> 15);
+        x <<= 1;
+    }
+}
+// Print u_int8_t values in binary (unused)
+void printBinary8(int x) {
+    for (int i = 0; i < 8; i++)
+    {
+        printf("%d", (x & 0x8000) >> 15);
+        x <<= 1;
+    }
+}

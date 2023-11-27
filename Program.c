@@ -1,3 +1,4 @@
+// IMPORT REQUIRED LIBRARIES
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -7,6 +8,7 @@
 #include <string.h>
 #include <stdbool.h>
 
+// DATA STRUCTURES
 typedef struct __attribute__((__packed__)) {
     u_int8_t BS_jmpBoot[3];    // x86 jump instr. to boot code
     u_int8_t BS_OEMName[8];    // What created the filesystem
@@ -45,24 +47,9 @@ typedef struct __attribute__((__packed__)) {
     u_int32_t DIR_FileSize;    // File size in bytes
 } DirectoryEntry;
 
-// Print u_int16_t values in binary (unused)
-void printBinary16(int x) {
-    for (int i = 0; i < 16; i++)
-    {
-        printf("%d", (x & 0x8000) >> 15);
-        x <<= 1;
-    }
-}
-// Print u_int8_t values in binary (unused)
-void printBinary8(int x) {
-    for (int i = 0; i < 8; i++)
-    {
-        printf("%d", (x & 0x8000) >> 15);
-        x <<= 1;
-    }
-}
 
-// Task 1
+
+// READ BYTES AT OFFSET
 ssize_t readBytes(int fd, char *filename, off_t offset, char *buffer, ssize_t bytesToRead) {
     fd = open(filename, O_RDONLY);        // Open file
     lseek(fd, offset, SEEK_SET);          // Seek to the byte position for the bootsector
@@ -70,7 +57,16 @@ ssize_t readBytes(int fd, char *filename, off_t offset, char *buffer, ssize_t by
     close(fd);                            // Close file
 }
 
-// Task 2
+// RETURN CLUSTER AT OFFSET
+u_int16_t getCluster(int fd, char *filename, off_t offset) {
+    ssize_t bytesRead;
+    u_int16_t cluster;
+    bytesRead = readBytes(fd, filename, offset, &cluster, sizeof(u_int16_t));
+    return cluster;
+}
+
+
+// TASK 2
 void printFields(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize) {
     off_t offset = 0;                        // How many bytes from the start of the file to begin
     size_t bytesToRead = sizeof(BootSector); // How many bytes to be read from the file
@@ -108,40 +104,39 @@ void printFields(int fd, char *filename, BootSector *bootSector, size_t bootSect
     printf("\n");
 }
 
-// Task 3
+// TASK 3
 void produceClusters(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize) {
     ssize_t bytesRead;                                                                // How many bytes were actually read from the file
     off_t initialFATOffset = bootSector->BPB_RsvdSecCnt * bootSector->BPB_BytsPerSec; // The offset at which we will start reading (the position of the first fat cluster)
-    size_t clusterCount = 0;                                                          // Counter for the amount of clusters read from the file
     u_int16_t FATArray[bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec / 2];     // Array for the first FAT
+    u_int16_t previousCluster;
+    u_int16_t retrievedCluster;
     bool firstFound = false;
+    int chosenClusterIndex;
 
-    printf("Offset for first FAT byte: %d\n", initialFATOffset); // debug - Print the FAT offset to monitor the functions read start point
-    bytesRead = readBytes(fd, filename, initialFATOffset, FATArray, bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec);
+    printf("Please choose a cluster to read from: ");
+    scanf("%d", &chosenClusterIndex);
+
+    bytesRead = readBytes(fd, filename, initialFATOffset, FATArray, bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec);z
 
     printf("First cluster list: ");
-    for (size_t i = 0; i < bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec / 2; i++) {
-        if (!firstFound && (FATArray[i] == 0000 || FATArray[i] >= 0xFFF8)) {
-            // ignore value
-        }
-        else {
-            if (FATArray[i] < 0xFFF8) {
-                printf("%04X -", FATArray[i]);
-                if (!firstFound) {
-                    firstFound = true;
-                }
-            }
-            else {
-                printf("%04X\n", FATArray[i]);
-                break;
-            }
+    while(previousCluster < 0xFFF8) {
+        if (!firstFound) {
+            retrievedCluster = FATArray[0];
+            printf("%04X - ", retrievedCluster);
+            previousCluster = retrievedCluster;
+            firstFound = true;
+        } else {
+            retrievedCluster = FATArray[previousCluster];
+            printf("%04X - ", retrievedCluster);
+            previousCluster = retrievedCluster;
         }
     }
 
     printf("\n\n");
 }
 
-// Task 4 (need to expand for Task 6)
+// TASK 4 (need to expand for Task 6)
 DirectoryEntry **listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize, off_t dirOffset) {
     ssize_t bytesRead;
     size_t numOfEntries = bootSector->BPB_RootEntCnt;
@@ -197,7 +192,7 @@ DirectoryEntry **listFiles(int fd, char *filename, BootSector *bootSector, size_
     return entries;
 }
 
-// Task 5
+// TASK 5
 void openFile(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize, DirectoryEntry **pEntries) {
     int chosenFileID;
     DirectoryEntry chosenFile;
@@ -233,6 +228,7 @@ void openFile(int fd, char *filename, BootSector *bootSector, size_t bootSectorS
 
 
 
+// MAIN FUNCTION
 int main() {
     int fd;                                     // The file descriptor
     char filename[] = "fat16.img";              // The fat16 image filename
@@ -258,5 +254,5 @@ int main() {
     printf("--- Task 5 ---\n");
     openFile(fd, filename, &bootSector, bootSectorSize, pEntries); // Output the contents of a chosen file from a directory
 
-    
+
 }
