@@ -141,7 +141,7 @@ void produceClusters(char *filename, BootSector *bootSector, size_t bootSectorSi
 }
 
 // TASK 4 (need to expand for Task 6)
-DirectoryEntry listFiles(char *filename, BootSector *bootSector, size_t bootSectorSize, off_t dirOffset) {
+void listDir(char *filename, BootSector *bootSector, size_t bootSectorSize, off_t dirOffset) {
     size_t numOfEntries = bootSector->BPB_RootEntCnt;
     DirectoryEntry **entries = malloc(bootSector->BPB_RootEntCnt * sizeof(DirectoryEntry *));
     DirectoryEntry chosenEntry;
@@ -195,6 +195,7 @@ DirectoryEntry listFiles(char *filename, BootSector *bootSector, size_t bootSect
     }
     printf("\n");
 
+    printf("--- Task 5 ---");
     // Get chosen file ID from user
     printf("Please enter the file to display: ");
     scanf("%d", &chosenFileID);
@@ -202,7 +203,7 @@ DirectoryEntry listFiles(char *filename, BootSector *bootSector, size_t bootSect
     // Copy chosen file into local struct instance and grab the file size and starting cluster
     memcpy(&chosenEntry, entries[chosenFileID], sizeof(DirectoryEntry));
 
-    return chosenEntry;
+    openEntry(filename, bootSector, bootSectorSize, chosenEntry); // Output the contents of a chosen file from a directory
 }
 
 // TASK 5
@@ -220,8 +221,8 @@ void openEntry(char *filename, BootSector *bootSector, size_t bootSectorSize, Di
 
     if (chosenEntry.DIR_Attr == 0x10) {
         // handle printing the selected directory
-        // // chosenEntryOffset += ((startingCluster + 2 + (2 * sizeof(u_int16_t))) * (bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec));
-        // // entries = listFiles(fd, filename, &bootSector, bootSectorSize, chosenEntryOffset);
+        // NOTE: chosenEntry is a directory, so call listDir but pass in offset for the subdirectory, not the root, which should be calculated here
+        
     } else {
         chosenEntryOffset += ((startingCluster + 2 + (2 * sizeof(u_int16_t))) * (bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec));
 
@@ -253,11 +254,6 @@ int main() {
     // Task 4
     printf("--- Task 4 ---\n");
     dirOffset = (bootSector.BPB_RsvdSecCnt + (bootSector.BPB_NumFATs * bootSector.BPB_FATSz16)) * bootSector.BPB_BytsPerSec;
-    chosenEntry = listFiles(filename, &bootSector, bootSectorSize, dirOffset); // Output a list of files in the root directory
-
-    // Task 5
-    printf("--- Task 5 ---\n");
-    openEntry(filename, &bootSector, bootSectorSize, chosenEntry); // Output the contents of a chosen file from a directory
-
+    listDir(filename, &bootSector, bootSectorSize, dirOffset); // Output a list of files in the root directory
 
 }
