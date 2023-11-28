@@ -1,3 +1,7 @@
+// FAT 16 IMAGE INTERPRETER/INTERFACE IN C
+// BY WILL HOLBROOK NOV 2023
+// STUDENT ID: 38722798
+
 // IMPORT REQUIRED LIBRARIES
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,10 +12,9 @@
 #include <string.h>
 #include <stdbool.h>
 
-// MACROS
+// MACROS (UNUSED RIGHT NOW)
 #define BOOT_SECTOR_SIZE (sizeof(BootSector))
 #define ROOT_DIR_OFFSET(bootSector) ((bootSector.BPB_RsvdSecCnt + (bootSector.BPB_NumFATs * bootSector.BPB_FATSz16)) * bootSector.BPB_BytsPerSec)
-#define 
 
 // DATA STRUCTURES
 typedef struct __attribute__((__packed__)) {
@@ -52,32 +55,29 @@ typedef struct __attribute__((__packed__)) {
     u_int32_t DIR_FileSize;    // File size in bytes
 } DirectoryEntry;
 
-
-
 // READ BYTES AT OFFSET
-ssize_t readBytes(int fd, char *filename, off_t offset, char *buffer, ssize_t bytesToRead) {
-    fd = open(filename, O_RDONLY);        // Open file
+void readBytes(char *filename, off_t offset, char *buffer, ssize_t bytesToRead) {
+    int fd = open(filename, O_RDONLY);        // Open file
     lseek(fd, offset, SEEK_SET);          // Seek to the byte position for the bootsector
-    return read(fd, buffer, bytesToRead); // Read the file from start the the end of the boot sector
+    read(fd, buffer, bytesToRead);        // Read the file from start the the end of the boot sector
     close(fd);                            // Close file
 }
 
 // RETURN CLUSTER AT OFFSET
-u_int16_t getCluster(int fd, char *filename, off_t offset) {
-    ssize_t bytesRead;
+u_int16_t getCluster(char *filename, off_t offset) {
     u_int16_t cluster;
-    bytesRead = readBytes(fd, filename, offset, &cluster, sizeof(u_int16_t));
+    readBytes(filename, offset, &cluster, sizeof(u_int16_t));
     return cluster;
 }
 
 
+
 // TASK 2
-void printFields(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize) {
+void printFields(char *filename, BootSector *bootSector, size_t bootSectorSize) {
     off_t offset = 0;                        // How many bytes from the start of the file to begin
     size_t bytesToRead = sizeof(BootSector); // How many bytes to be read from the file
-    ssize_t bytesRead;                       // How many bytes were actually read from the file
 
-    bytesRead = readBytes(fd, filename, offset, bootSector, bytesToRead); // Runs readBytes functions to open the file, seek to the bytes, and read them to the bootSector struct directly
+    readBytes(filename, offset, bootSector, bytesToRead); // Runs readBytes functions to open the file, seek to the bytes, and read them to the bootSector struct directly
 
     // Print bootsector fields (debug)
     printf("BS_jmpBoot: ");
@@ -110,8 +110,7 @@ void printFields(int fd, char *filename, BootSector *bootSector, size_t bootSect
 }
 
 // TASK 3
-void produceClusters(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize) {
-    ssize_t bytesRead;                                                                // How many bytes were actually read from the file
+void produceClusters(char *filename, BootSector *bootSector, size_t bootSectorSize) {
     off_t initialFATOffset = bootSector->BPB_RsvdSecCnt * bootSector->BPB_BytsPerSec; // The offset at which we will start reading (the position of the first fat cluster)
     u_int16_t FATArray[bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec / 2];     // Array for the first FAT
     u_int16_t previousCluster;
@@ -122,7 +121,7 @@ void produceClusters(int fd, char *filename, BootSector *bootSector, size_t boot
     printf("Please choose a cluster to read from: ");
     scanf("%d", &chosenClusterIndex);
 
-    bytesRead = readBytes(fd, filename, initialFATOffset, FATArray, bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec);
+    readBytes(filename, initialFATOffset, FATArray, bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec);
 
     printf("First cluster list: ");
     while(previousCluster < 0xFFF8) {
@@ -142,14 +141,13 @@ void produceClusters(int fd, char *filename, BootSector *bootSector, size_t boot
 }
 
 // TASK 4 (need to expand for Task 6)
-DirectoryEntry **listFiles(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize, off_t dirOffset) {
-    ssize_t bytesRead;
+DirectoryEntry **listFiles(char *filename, BootSector *bootSector, size_t bootSectorSize, off_t dirOffset) {
     size_t numOfEntries = bootSector->BPB_RootEntCnt;
     DirectoryEntry **entries = malloc(bootSector->BPB_RootEntCnt * sizeof(DirectoryEntry *));
 
     for (size_t i = 0; i < numOfEntries; i++) {
         DirectoryEntry *entry = malloc(sizeof(DirectoryEntry));
-        bytesRead = readBytes(fd, filename, dirOffset + (i * sizeof(DirectoryEntry)), entry, sizeof(DirectoryEntry));
+        readBytes(filename, dirOffset + (i * sizeof(DirectoryEntry)), entry, sizeof(DirectoryEntry));
         entries[i] = entry;
     }
 
@@ -198,14 +196,13 @@ DirectoryEntry **listFiles(int fd, char *filename, BootSector *bootSector, size_
 }
 
 // TASK 5
-void openFile(int fd, char *filename, BootSector *bootSector, size_t bootSectorSize, DirectoryEntry **pEntries) {
+void openFile(char *filename, BootSector *bootSector, size_t bootSectorSize, DirectoryEntry **pEntries) {
     int chosenFileID;
     DirectoryEntry chosenFile;
     off_t chosenFileOffset;
     ssize_t chosenFileSize;
     u_int32_t startingCluster;
-    ssize_t bytesRead;
-    DirectoryEntry **entries;
+    //DirectoryEntry **entries;
 
     // Get chosen file ID from user
     printf("Please enter the file to display: ");
@@ -228,7 +225,7 @@ void openFile(int fd, char *filename, BootSector *bootSector, size_t bootSectorS
 
         // Print the file contents until end of file
         char buffer[chosenFileSize];
-        bytesRead = readBytes(fd, filename, chosenFileOffset, buffer, chosenFileSize);
+        readBytes(filename, chosenFileOffset, buffer, chosenFileSize);
         printf("File '%s' contains:\n%s", chosenFile.DIR_Name, buffer);
     }
 }
@@ -237,7 +234,6 @@ void openFile(int fd, char *filename, BootSector *bootSector, size_t bootSectorS
 
 // MAIN FUNCTION
 int main() {
-    int fd;                                     // The file descriptor
     char filename[] = "fat16.img";              // The fat16 image filename
     BootSector bootSector;                      // Struct of BootSector field
     size_t bootSectorSize = sizeof(bootSector); // Size of BootSector in bytes
@@ -246,20 +242,20 @@ int main() {
 
     // Task 2
     printf("--- Task 2 ---\n");
-    printFields(fd, filename, &bootSector, bootSectorSize); // Print all fields of the boot sector
+    printFields(filename, &bootSector, bootSectorSize); // Print all fields of the boot sector
 
     // Task 3
     printf("--- Task 3 ---\n");
-    produceClusters(fd, filename, &bootSector, bootSectorSize); // Load a copy of first FAT into memory, and print an ordered list of clusters
+    produceClusters(filename, &bootSector, bootSectorSize); // Load a copy of first FAT into memory, and print an ordered list of clusters
 
     // Task 4
     printf("--- Task 4 ---\n");
     dirOffset = (bootSector.BPB_RsvdSecCnt + (bootSector.BPB_NumFATs * bootSector.BPB_FATSz16)) * bootSector.BPB_BytsPerSec;
-    pEntries = listFiles(fd, filename, &bootSector, bootSectorSize, dirOffset); // Output a list of files in the root directory
+    pEntries = listFiles(filename, &bootSector, bootSectorSize, dirOffset); // Output a list of files in the root directory
 
     // Task 5
     printf("--- Task 5 ---\n");
-    openFile(fd, filename, &bootSector, bootSectorSize, pEntries); // Output the contents of a chosen file from a directory
+    openFile(filename, &bootSector, bootSectorSize, pEntries); // Output the contents of a chosen file from a directory
 
 
 }
