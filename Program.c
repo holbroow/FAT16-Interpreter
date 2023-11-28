@@ -222,7 +222,10 @@ void openEntry(char *filename, BootSector *bootSector, size_t bootSectorSize, Di
     if (chosenEntry.DIR_Attr == 0x10) {
         // handle printing the selected directory
         // NOTE: chosenEntry is a directory, so call listDir but pass in offset for the subdirectory, not the root, which should be calculated here
-        
+
+        chosenEntryOffset += ((startingCluster + 2 + (2 * sizeof(u_int16_t))) * (bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec));
+        listDir(filename, bootSector, bootSectorSize, chosenEntryOffset);
+
     } else {
         chosenEntryOffset += ((startingCluster + 2 + (2 * sizeof(u_int16_t))) * (bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec));
 
