@@ -8,6 +8,11 @@
 #include <string.h>
 #include <stdbool.h>
 
+// MACROS
+#define BOOT_SECTOR_SIZE (sizeof(BootSector))
+#define ROOT_DIR_OFFSET(bootSector) ((bootSector.BPB_RsvdSecCnt + (bootSector.BPB_NumFATs * bootSector.BPB_FATSz16)) * bootSector.BPB_BytsPerSec)
+#define 
+
 // DATA STRUCTURES
 typedef struct __attribute__((__packed__)) {
     u_int8_t BS_jmpBoot[3];    // x86 jump instr. to boot code
@@ -117,12 +122,12 @@ void produceClusters(int fd, char *filename, BootSector *bootSector, size_t boot
     printf("Please choose a cluster to read from: ");
     scanf("%d", &chosenClusterIndex);
 
-    bytesRead = readBytes(fd, filename, initialFATOffset, FATArray, bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec);z
+    bytesRead = readBytes(fd, filename, initialFATOffset, FATArray, bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec);
 
     printf("First cluster list: ");
     while(previousCluster < 0xFFF8) {
         if (!firstFound) {
-            retrievedCluster = FATArray[0];
+            retrievedCluster = FATArray[chosenClusterIndex];
             printf("%04X - ", retrievedCluster);
             previousCluster = retrievedCluster;
             firstFound = true;
@@ -200,6 +205,7 @@ void openFile(int fd, char *filename, BootSector *bootSector, size_t bootSectorS
     ssize_t chosenFileSize;
     u_int32_t startingCluster;
     ssize_t bytesRead;
+    DirectoryEntry **entries;
 
     // Get chosen file ID from user
     printf("Please enter the file to display: ");
@@ -215,7 +221,8 @@ void openFile(int fd, char *filename, BootSector *bootSector, size_t bootSectorS
 
     if (chosenFile.DIR_Attr == 0x10) {
         // handle printing the selected directory
-
+        // // chosenFileOffset += ((startingCluster + 2 + (2 * sizeof(u_int16_t))) * (bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec));
+        // // entries = listFiles(fd, filename, &bootSector, bootSectorSize, chosenFileOffset);
     } else {
         chosenFileOffset += ((startingCluster + 2 + (2 * sizeof(u_int16_t))) * (bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec));
 
@@ -235,7 +242,7 @@ int main() {
     BootSector bootSector;                      // Struct of BootSector field
     size_t bootSectorSize = sizeof(bootSector); // Size of BootSector in bytes
     DirectoryEntry **pEntries;                  // Pointer to the DirectoryEntry pointer array (to access the root dir in other functions)
-    off_t dirOffset;                            // Offset to read the root directory (initial call of listFIles functon)
+    off_t dirOffset;                            // Offset to read the root directory (initial call of listFiles functon)
 
     // Task 2
     printf("--- Task 2 ---\n");
