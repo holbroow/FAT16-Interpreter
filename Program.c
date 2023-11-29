@@ -70,6 +70,8 @@ u_int16_t getCluster(char *filename, off_t offset) {
     return cluster;
 }
 
+// CONVERT BINARY TO STRING
+
 
 
 // TASK 2
@@ -148,7 +150,7 @@ void produceClusters(char *filename, BootSector *bootSector, size_t bootSectorSi
 void listDir(char *filename, BootSector *bootSector, size_t bootSectorSize, off_t dirOffset) {
     size_t numOfEntries = bootSector->BPB_RootEntCnt;                                               // NUMBER OF POSSIBLE ENTRIES IN THE ROOT DIRECTORY
     DirectoryEntry **entries = malloc(bootSector->BPB_RootEntCnt * sizeof(DirectoryEntry *));       // ARRAY OF POINTERS TO ENTRIES, READ FROM THE ROOT DIRECTORY POSITION
-    int entriesStored = 0;                                                                          // INTEGER TO KEEP TRACK OF SAVED ENTRIES FROM THE FILE
+    size_t entriesStored = 0;                                                                          // INTEGER TO KEEP TRACK OF SAVED ENTRIES FROM THE FILE
     int chosenFileID;                                                                               // ID FOR THE CHOSEN ENTRY TO SELECT AND OPEN
     DirectoryEntry chosenEntry;                                                                     // STRUCT TO HOLD THE SELECTED ENTRY
 
@@ -159,6 +161,8 @@ void listDir(char *filename, BootSector *bootSector, size_t bootSectorSize, off_
         if (entry->DIR_Name[0] != 0x00 && entry->DIR_Name[0] != 0xE5) {
             entries[i] = entry;
             entriesStored++;
+        } else {
+            free(entry);
         }
     }
 
@@ -169,28 +173,28 @@ void listDir(char *filename, BootSector *bootSector, size_t bootSectorSize, off_
         }
         else if (entries[i]->DIR_Attr != 0x000F) { // SHORT FILENAME
             // ENTRY ID
-            printf("%2d", i);
+            printf("%-20d", i);
 
             // FILENAME
-            printf("%20s", entries[i]->DIR_Name + '\0');
-
-            // DATE AND TIME
-            printf("           %10d-%02d-%02d %02d:%02d:%02d",
-                    (((entries[i]->DIR_WrtDate >> 9) & 0x7F) + 1980),
-                    ((entries[i]->DIR_WrtDate >> 5) & 0xF),
-                    (entries[i]->DIR_WrtDate & 0x1F),
-                    ((entries[i]->DIR_WrtTime >> 11) & 0x1F),
-                    ((entries[i]->DIR_WrtTime >> 5) & 0x3F),
-                    (entries[i]->DIR_WrtTime & 0x1F));
+            printf("%-30s", entries[i]->DIR_Name + '\0');
 
             // ATTRIBUTES
-            printf("%15c%c%c%c%c%c",
+            printf("%c%c%c%c%c%c",
                     (entries[i]->DIR_Attr & 0x20) ? 'A' : '-',
                     (entries[i]->DIR_Attr & 0x10) ? 'D' : '-',
                     (entries[i]->DIR_Attr & 0x08) ? 'V' : '-',
                     (entries[i]->DIR_Attr & 0x04) ? 'S' : '-',
                     (entries[i]->DIR_Attr & 0x02) ? 'H' : '-',
                     (entries[i]->DIR_Attr & 0x01) ? 'R' : '-');
+
+            // DATE AND TIME
+            printf("%10d-%d-%d %d:%d:%d",
+                    (((entries[i]->DIR_WrtDate >> 9) & 0x7F) + 1980),
+                    ((entries[i]->DIR_WrtDate >> 5) & 0xF),
+                    (entries[i]->DIR_WrtDate & 0x1F),
+                    ((entries[i]->DIR_WrtTime >> 11) & 0x1F),
+                    ((entries[i]->DIR_WrtTime >> 5) & 0x3F),
+                    (entries[i]->DIR_WrtTime & 0x1F));
 
             // STARTING CLUSTER
             u_int32_t fullFstCluster = (((u_int32_t)entries[i]->DIR_FstClusHI << 16) + entries[i]->DIR_FstClusLO);
