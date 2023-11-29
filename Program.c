@@ -148,6 +148,7 @@ void produceClusters(char *filename, BootSector *bootSector, size_t bootSectorSi
 void listDir(char *filename, BootSector *bootSector, size_t bootSectorSize, off_t dirOffset) {
     size_t numOfEntries = bootSector->BPB_RootEntCnt;                                               // NUMBER OF POSSIBLE ENTRIES IN THE ROOT DIRECTORY
     DirectoryEntry **entries = malloc(bootSector->BPB_RootEntCnt * sizeof(DirectoryEntry *));       // ARRAY OF POINTERS TO ENTRIES, READ FROM THE ROOT DIRECTORY POSITION
+    int entriesStored = 0;                                                                          // INTEGER TO KEEP TRACK OF SAVED ENTRIES FROM THE FILE
     int chosenFileID;                                                                               // ID FOR THE CHOSEN ENTRY TO SELECT AND OPEN
     DirectoryEntry chosenEntry;                                                                     // STRUCT TO HOLD THE SELECTED ENTRY
 
@@ -155,54 +156,53 @@ void listDir(char *filename, BootSector *bootSector, size_t bootSectorSize, off_
     for (size_t i = 0; i < numOfEntries; i++) {
         DirectoryEntry *entry = malloc(sizeof(DirectoryEntry));
         readBytes(filename, dirOffset + (i * sizeof(DirectoryEntry)), entry, sizeof(DirectoryEntry));
-        entries[i] = entry;
+        if (entry->DIR_Name[0] != 0x00 && entry->DIR_Name[0] != 0xE5) {
+            entries[i] = entry;
+            entriesStored++;
+        }
     }
 
     // PRINT DIRECTORY INTO COLUMNS
-    for (size_t i = 0; i < numOfEntries; i++) {
-        if ((entries[i]->DIR_Name[0] != 0x00 && entries[i]->DIR_Name[0] != 0xE5)) {
-            if (entries[i]->DIR_Attr == 0x000F) { // LONG FILENAME
+    for (size_t i = 0; i < entriesStored; i++) {
+        if (entries[i]->DIR_Attr == 0x000F) { // LONG FILENAME
+            // NOT IMPLEMENTED YET (TASK 6)
+        }
+        else if (entries[i]->DIR_Attr != 0x000F) { // SHORT FILENAME
+            // ENTRY ID
+            printf("%2d", i);
 
-            }
-            else if (entries[i]->DIR_Attr != 0x000F) { // SHORT FILENAME
-                // ENTRY ID
-                printf("%2d", i);
+            // FILENAME
+            printf("%20s", entries[i]->DIR_Name + '\0');
 
-                // FILENAME
-                printf("%20s", entries[i]->DIR_Name + '\0');
+            // DATE AND TIME
+            printf("           %10d-%02d-%02d %02d:%02d:%02d",
+                    (((entries[i]->DIR_WrtDate >> 9) & 0x7F) + 1980),
+                    ((entries[i]->DIR_WrtDate >> 5) & 0xF),
+                    (entries[i]->DIR_WrtDate & 0x1F),
+                    ((entries[i]->DIR_WrtTime >> 11) & 0x1F),
+                    ((entries[i]->DIR_WrtTime >> 5) & 0x3F),
+                    (entries[i]->DIR_WrtTime & 0x1F));
 
-                // DATE AND TIME
-                printf("           %15d-%15d-%02d %02d:%02d:%02d",
-                       (((entries[i]->DIR_WrtDate >> 9) & 0x7F) + 1980),
-                       ((entries[i]->DIR_WrtDate >> 5) & 0xF),
-                       (entries[i]->DIR_WrtDate & 0x1F),
-                       ((entries[i]->DIR_WrtTime >> 11) & 0x1F),
-                       ((entries[i]->DIR_WrtTime >> 5) & 0x3F),
-                       (entries[i]->DIR_WrtTime & 0x1F));
+            // ATTRIBUTES
+            printf("%15c%c%c%c%c%c",
+                    (entries[i]->DIR_Attr & 0x20) ? 'A' : '-',
+                    (entries[i]->DIR_Attr & 0x10) ? 'D' : '-',
+                    (entries[i]->DIR_Attr & 0x08) ? 'V' : '-',
+                    (entries[i]->DIR_Attr & 0x04) ? 'S' : '-',
+                    (entries[i]->DIR_Attr & 0x02) ? 'H' : '-',
+                    (entries[i]->DIR_Attr & 0x01) ? 'R' : '-');
 
-                // ATTRIBUTES
-                printf("%15c%c%c%c%c%c",
-                       (entries[i]->DIR_Attr & 0x20) ? 'A' : '-',
-                       (entries[i]->DIR_Attr & 0x10) ? 'D' : '-',
-                       (entries[i]->DIR_Attr & 0x08) ? 'V' : '-',
-                       (entries[i]->DIR_Attr & 0x04) ? 'S' : '-',
-                       (entries[i]->DIR_Attr & 0x02) ? 'H' : '-',
-                       (entries[i]->DIR_Attr & 0x01) ? 'R' : '-');
+            // STARTING CLUSTER
+            u_int32_t fullFstCluster = (((u_int32_t)entries[i]->DIR_FstClusHI << 16) + entries[i]->DIR_FstClusLO);
+            printf("              %08X", fullFstCluster);
 
-                // STARTING CLUSTER
-                u_int32_t fullFstCluster = (((u_int32_t)entries[i]->DIR_FstClusHI << 16) + entries[i]->DIR_FstClusLO);
-                printf("              %08X", fullFstCluster);
-
-                // FILE SIZE/LENGTH
-                printf("%18d bytes\n", entries[i]->DIR_FileSize);
-            }
+            // FILE SIZE/LENGTH
+            printf("%18d bytes\n", entries[i]->DIR_FileSize);
         }
     }
     printf("\n");
 
     // OPEN THE ENTRY CHOSEN BY THE USER
-    printf("--- Task 5 ---\n");
-
     printf("Please enter the file to display: ");
     scanf("%d", &chosenFileID);
 
@@ -269,7 +269,7 @@ int main() {
     produceClusters(filename, &bootSector, bootSectorSize); // LOAD A COPY OF FIRST FAT INTO MEMORY, AND PRODUCE AN ORDERED LIST OF CLUSTERS
 
     // Task 4
-    printf("--- Task 4 ---\n");
+    printf("--- Task 4, 5, 7 ---\n");
     dirOffset = (bootSector.BPB_RsvdSecCnt + (bootSector.BPB_NumFATs * bootSector.BPB_FATSz16)) * bootSector.BPB_BytsPerSec;
     listDir(filename, &bootSector, bootSectorSize, dirOffset); // OUTPUT THE LIST OF FILES IN THE ROOT (Recursively called in openEntry when a directory is chosen)
 
