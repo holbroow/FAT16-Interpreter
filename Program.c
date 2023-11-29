@@ -160,19 +160,19 @@ void listDir(char *filename, BootSector *bootSector, size_t bootSectorSize, off_
 
     // PRINT DIRECTORY INTO COLUMNS
     for (size_t i = 0; i < numOfEntries; i++) {
-        if ((entries[i]->DIR_Name[11] != 0x00 && entries[i]->DIR_Name[11] != 0xE5)) {
+        if ((entries[i]->DIR_Name[0] != 0x00 && entries[i]->DIR_Name[0] != 0xE5)) {
             if (entries[i]->DIR_Attr == 0x000F) { // LONG FILENAME
 
             }
             else if (entries[i]->DIR_Attr != 0x000F) { // SHORT FILENAME
                 // ENTRY ID
-                printf("%d", i);
+                printf("%2d", i);
 
                 // FILENAME
                 printf("%20s", entries[i]->DIR_Name + '\0');
 
                 // DATE AND TIME
-                printf("           %02d-%02d-%02d %02d:%02d:%02d",
+                printf("           %15d-%15d-%02d %02d:%02d:%02d",
                        (((entries[i]->DIR_WrtDate >> 9) & 0x7F) + 1980),
                        ((entries[i]->DIR_WrtDate >> 5) & 0xF),
                        (entries[i]->DIR_WrtDate & 0x1F),
