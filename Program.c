@@ -56,7 +56,7 @@ typedef struct __attribute__((__packed__)) {
 } DirectoryEntry;
 
 // READ BYTES AT OFFSET
-void readBytes(char *filename, off_t offset, char *buffer, ssize_t bytesToRead) {
+void readBytes(char *filename, off_t offset, void *buffer, ssize_t bytesToRead) {
     int fd = open(filename, O_RDONLY);        // Open file
     lseek(fd, offset, SEEK_SET);          // Seek to the byte position for the bootsector
     read(fd, buffer, bytesToRead);        // Read the file from start the the end of the boot sector
@@ -149,59 +149,55 @@ void produceClusters(char *filename, BootSector *bootSector, size_t bootSectorSi
 // TASK 4 (need to expand for Task 6)
 void listDir(char *filename, BootSector *bootSector, size_t bootSectorSize, off_t dirOffset) {
     size_t numOfEntries = bootSector->BPB_RootEntCnt;                                               // NUMBER OF POSSIBLE ENTRIES IN THE ROOT DIRECTORY
-    DirectoryEntry **entries = malloc(bootSector->BPB_RootEntCnt * sizeof(DirectoryEntry *));       // ARRAY OF POINTERS TO ENTRIES, READ FROM THE ROOT DIRECTORY POSITION
-    size_t entriesStored = 0;                                                                          // INTEGER TO KEEP TRACK OF SAVED ENTRIES FROM THE FILE
+    DirectoryEntry **entries = malloc(bootSector->BPB_RootEntCnt * sizeof(DirectoryEntry));       // ARRAY OF POINTERS TO ENTRIES, READ FROM THE ROOT DIRECTORY POSITION
     int chosenFileID;                                                                               // ID FOR THE CHOSEN ENTRY TO SELECT AND OPEN
     DirectoryEntry chosenEntry;                                                                     // STRUCT TO HOLD THE SELECTED ENTRY
 
     // SAVE DIRECTORY ENTRIES INTO AN ARRAY
     for (size_t i = 0; i < numOfEntries; i++) {
-        DirectoryEntry *entry = malloc(sizeof(DirectoryEntry));
+        DirectoryEntry *entry = (DirectoryEntry*) malloc(sizeof(DirectoryEntry));
         readBytes(filename, dirOffset + (i * sizeof(DirectoryEntry)), entry, sizeof(DirectoryEntry));
-        if (entry->DIR_Name[0] != 0x00 && entry->DIR_Name[0] != 0xE5) {
-            entries[i] = entry;
-            entriesStored++;
-        } else {
-            free(entry);
-        }
+        entries[i] = entry;
     }
 
     // PRINT DIRECTORY INTO COLUMNS
-    for (size_t i = 0; i < entriesStored; i++) {
-        if (entries[i]->DIR_Attr == 0x000F) { // LONG FILENAME
-            // NOT IMPLEMENTED YET (TASK 6)
+    for (size_t i = 0; i < bootSector->BPB_RootEntCnt; i++) {
+        if (entries[i]->DIR_Name[0] == 0x00) {
+            break;
         }
-        else if (entries[i]->DIR_Attr != 0x000F) { // SHORT FILENAME
-            // ENTRY ID
-            printf("%-20d", i);
+        if (entries[i]->DIR_Name[0] != 0xE5) {
+            if (entries[i]->DIR_Attr != 0x000F) { // SHORT FILENAME
+                // ENTRY ID
+                printf("%-20ld", i);
 
-            // FILENAME
-            printf("%-30s", entries[i]->DIR_Name + '\0');
+                // FILENAME
+                printf("%-30s", entries[i]->DIR_Name + '\0');
 
-            // ATTRIBUTES
-            printf("%c%c%c%c%c%c",
-                    (entries[i]->DIR_Attr & 0x20) ? 'A' : '-',
-                    (entries[i]->DIR_Attr & 0x10) ? 'D' : '-',
-                    (entries[i]->DIR_Attr & 0x08) ? 'V' : '-',
-                    (entries[i]->DIR_Attr & 0x04) ? 'S' : '-',
-                    (entries[i]->DIR_Attr & 0x02) ? 'H' : '-',
-                    (entries[i]->DIR_Attr & 0x01) ? 'R' : '-');
+                // ATTRIBUTES
+                printf("%c%c%c%c%c%c",
+                        (entries[i]->DIR_Attr & 0x20) ? 'A' : '-',
+                        (entries[i]->DIR_Attr & 0x10) ? 'D' : '-',
+                        (entries[i]->DIR_Attr & 0x08) ? 'V' : '-',
+                        (entries[i]->DIR_Attr & 0x04) ? 'S' : '-',
+                        (entries[i]->DIR_Attr & 0x02) ? 'H' : '-',
+                        (entries[i]->DIR_Attr & 0x01) ? 'R' : '-');
 
-            // DATE AND TIME
-            printf("%10d-%d-%d %d:%d:%d",
-                    (((entries[i]->DIR_WrtDate >> 9) & 0x7F) + 1980),
-                    ((entries[i]->DIR_WrtDate >> 5) & 0xF),
-                    (entries[i]->DIR_WrtDate & 0x1F),
-                    ((entries[i]->DIR_WrtTime >> 11) & 0x1F),
-                    ((entries[i]->DIR_WrtTime >> 5) & 0x3F),
-                    (entries[i]->DIR_WrtTime & 0x1F));
+                // DATE AND TIME
+                printf("%10d-%d-%d %d:%d:%d",
+                        (((entries[i]->DIR_WrtDate >> 9) & 0x7F) + 1980),
+                        ((entries[i]->DIR_WrtDate >> 5) & 0xF),
+                        (entries[i]->DIR_WrtDate & 0x1F),
+                        ((entries[i]->DIR_WrtTime >> 11) & 0x1F),
+                        ((entries[i]->DIR_WrtTime >> 5) & 0x3F),
+                        (entries[i]->DIR_WrtTime & 0x1F));
 
-            // STARTING CLUSTER
-            u_int32_t fullFstCluster = (((u_int32_t)entries[i]->DIR_FstClusHI << 16) + entries[i]->DIR_FstClusLO);
-            printf("              %08X", fullFstCluster);
+                // STARTING CLUSTER
+                u_int32_t fullFstCluster = (((u_int32_t)entries[i]->DIR_FstClusHI << 16) + entries[i]->DIR_FstClusLO);
+                printf("              %08X", fullFstCluster);
 
-            // FILE SIZE/LENGTH
-            printf("%18d bytes\n", entries[i]->DIR_FileSize);
+                // FILE SIZE/LENGTH
+                printf("%18d bytes\n", entries[i]->DIR_FileSize);
+            }
         }
     }
     printf("\n");
@@ -263,18 +259,42 @@ int main() {
     BootSector bootSector;                      // STRUCT OF BOOTSECTOR AND ITS FIELDS
     size_t bootSectorSize = sizeof(bootSector); // SIZE OF BOOTSECTOR IN BYTES
     off_t dirOffset;                            // OFFSET TO READ THE ROOT DIRECTORY (initial call of listDir functon)
+    int userChoice;                             // USER'S CHOICE FOR FUNCTION TO BE EXECUTED
 
-    // Task 2
-    printf("--- Task 2 ---\n");
-    printFields(filename, &bootSector, bootSectorSize); // PRINT REQUIRED FIELDS FROM THE BOOTSECTOR
+    printf("+---------------------------+\n");
+    printf("|     FAT16 Interpreter     |\n");
+    printf("|       Will Holbrook       |\n");
+    printf("|       Written in C        |\n");
+    printf("+---------------------------+\n");
 
-    // Task 3
-    printf("--- Task 3 ---\n");
-    produceClusters(filename, &bootSector, bootSectorSize); // LOAD A COPY OF FIRST FAT INTO MEMORY, AND PRODUCE AN ORDERED LIST OF CLUSTERS
+    while(true) {
+        printf("+----------------------------------------+\n");
+        printf("| Tasks:                                 |\n");
+        printf("|    1. Populate and Print BootSector    |\n");
+        printf("|    2. Produce cluster list             |\n");
+        printf("|    3. Directory viewer & accessor      |\n");
+        printf("|                                        |\n");
+        printf("+----------------------------------------+\n");
 
-    // Task 4
-    printf("--- Task 4, 5, 7 ---\n");
-    dirOffset = (bootSector.BPB_RsvdSecCnt + (bootSector.BPB_NumFATs * bootSector.BPB_FATSz16)) * bootSector.BPB_BytsPerSec;
-    listDir(filename, &bootSector, bootSectorSize, dirOffset); // OUTPUT THE LIST OF FILES IN THE ROOT (Recursively called in openEntry when a directory is chosen)
+        printf("+----------------------------------+\n");
+        printf("|   Please choose a task to run:   |\n");
+        printf("+----------------------------------+\n");
 
+        printf(">> ");
+        scanf("%d", &userChoice);
+        printf("\n");
+
+        switch (userChoice) {
+            case 1:
+                printFields(filename, &bootSector, bootSectorSize); // PRINT REQUIRED FIELDS FROM THE BOOTSECTOR
+                break;
+            case 2:
+                produceClusters(filename, &bootSector, bootSectorSize); // LOAD A COPY OF FIRST FAT INTO MEMORY, AND PRODUCE AN ORDERED LIST OF CLUSTERS
+                break;
+            case 3:
+                dirOffset = (bootSector.BPB_RsvdSecCnt + (bootSector.BPB_NumFATs * bootSector.BPB_FATSz16)) * bootSector.BPB_BytsPerSec;
+                listDir(filename, &bootSector, bootSectorSize, dirOffset); // OUTPUT THE LIST OF FILES IN THE ROOT (Recursively called in openEntry when a directory is chosen)
+                break;
+        }
+    }
 }
