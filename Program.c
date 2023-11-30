@@ -71,6 +71,11 @@ u_int16_t getCluster(char *filename, off_t offset) {
 }
 
 // CONVERT BINARY TO STRING
+void binaryToString() {
+  // nothing yet  
+}
+
+extern mo
 
 
 
