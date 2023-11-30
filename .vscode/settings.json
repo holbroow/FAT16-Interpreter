@@ -3,6 +3,7 @@
     "files.associations": {
         "types.h": "c",
         "fcntl.h": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "unistd.h": "c"
     }
 }

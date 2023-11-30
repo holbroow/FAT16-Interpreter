@@ -1,57 +1,9 @@
-// FAT 16 IMAGE INTERPRETER/INTERFACE IN C
-// BY WILL HOLBROOK NOV 2023
-// STUDENT ID: 38722798
-
-
 // IMPORT REQUIRED LIBRARIES
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
+#include "functions.h"
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
-#include <stdbool.h>
-
-
-// DATA STRUCTURES
-typedef struct __attribute__((__packed__)) {
-    u_int8_t BS_jmpBoot[3];    // x86 jump instr. to boot code
-    u_int8_t BS_OEMName[8];    // What created the filesystem
-    u_int16_t BPB_BytsPerSec;  // Bytes per Sector
-    u_int8_t BPB_SecPerClus;   // Sectors per Cluster
-    u_int16_t BPB_RsvdSecCnt;  // Reserved Sector Count
-    u_int8_t BPB_NumFATs;      // Number of copies of FAT
-    u_int16_t BPB_RootEntCnt;  // FAT12/FAT16: size of root DIR
-    u_int16_t BPB_TotSec16;    // Sectors, may be 0, see below
-    u_int8_t BPB_Media;        // Media type, e.g. fixed
-    u_int16_t BPB_FATSz16;     // Sectors in FAT (FAT12 or FAT16)
-    u_int16_t BPB_SecPerTrk;   // Sectors per Track
-    u_int16_t BPB_NumHeads;    // Number of heads in disk
-    u_int32_t BPB_HiddSec;     // Hidden Sector count
-    u_int32_t BPB_TotSec32;    // Sectors if BPB_TotSec16 == 0
-    u_int8_t BS_DrvNum;        // 0 = floppy, 0x80 = hard disk
-    u_int8_t BS_Reserved1;     //
-    u_int8_t BS_BootSig;       // Should = 0x29
-    u_int32_t BS_VolID;        // 'Unique' ID for volume
-    u_int8_t BS_VolLab[11];    // Non zero terminated string
-    u_int8_t BS_FilSysType[8]; // e.g. 'FAT16 ' (Not 0 term.)
-} BootSector;
-
-typedef struct __attribute__((__packed__)) {
-    u_int8_t DIR_Name[11];     // Non zero terminated string
-    u_int8_t DIR_Attr;         // File attributes
-    u_int8_t DIR_NTRes;        // Used by Windows NT, ignore
-    u_int8_t DIR_CrtTimeTenth; // Tenths of sec. 0...199
-    u_int16_t DIR_CrtTime;     // Creation Time in 2s intervals
-    u_int16_t DIR_CrtDate;     // Date file created
-    u_int16_t DIR_LstAccDate;  // Date of last read or write
-    u_int16_t DIR_FstClusHI;   // Top 16 bits file's 1st cluster
-    u_int16_t DIR_WrtTime;     // Time of last write
-    u_int16_t DIR_WrtDate;     // Date of last write
-    u_int16_t DIR_FstClusLO;   // Lower 16 bits file's 1st cluster
-    u_int32_t DIR_FileSize;    // File size in bytes
-} DirectoryEntry;
 
 
 // READ BYTES AT OFFSET
@@ -228,6 +180,13 @@ void openEntry(char *filename, BootSector *bootSector, size_t bootSectorSize, Di
         chosenEntryOffset += ((startingCluster + 2 + (2 * sizeof(u_int16_t))) * (bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec));
         listDir(filename, bootSector, bootSectorSize, chosenEntryOffset);
 
+    } else if (chosenEntry.DIR_Attr == 0x20) {      // ARCHIVE
+        // PRINT THE CHOSEN ARCHIVE
+        // issues: prints past the DIR
+        chosenEntryOffset += ((startingCluster + 2 + (2 * sizeof(u_int16_t))) * (bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec));
+        listDir(filename, bootSector, bootSectorSize, chosenEntryOffset);
+        
+        
     } else if (chosenEntry.DIR_Attr == 0x08) {      // VOLUME
         // PRINT ERROR MESSAGE AND RETURN TO ROOT
         printf("You have selected a volume entry. Returning to the root directory.\n\n");
@@ -245,53 +204,5 @@ void openEntry(char *filename, BootSector *bootSector, size_t bootSectorSize, Di
         readBytes(filename, chosenEntryOffset, buffer, chosenEntrySize);
         printf("File '%s' contains:\n%s", chosenEntry.DIR_Name, buffer);
 
-    }
-}
-
-
-
-// MAIN FUNCTION
-int main() {
-    char filename[] = "fat16.img";              // THE FAT16 IMAGE FILENAME IN DIRECTORY
-    BootSector bootSector;                      // STRUCT OF BOOTSECTOR AND ITS FIELDS
-    size_t bootSectorSize = sizeof(bootSector); // SIZE OF BOOTSECTOR IN BYTES
-    off_t dirOffset;                            // OFFSET TO READ THE ROOT DIRECTORY (initial call of listDir functon)
-    int userChoice;                             // USER'S CHOICE FOR FUNCTION TO BE EXECUTED
-
-    printf("+---------------------------+\n");
-    printf("|     FAT16 Interpreter     |\n");
-    printf("|       Will Holbrook       |\n");
-    printf("|       Written in C        |\n");
-    printf("+---------------------------+\n");
-
-    while(true) {
-        printf("\n\n+----------------------------------------+\n");
-        printf("| Tasks:                                 |\n");
-        printf("|    1. Populate and Print BootSector    |\n");
-        printf("|    2. Produce cluster list             |\n");
-        printf("|    3. Directory viewer & accessor      |\n");
-        printf("|                                        |\n");
-        printf("+----------------------------------------+\n");
-
-        printf("+----------------------------------+\n");
-        printf("|   Please choose a task to run:   |\n");
-        printf("+----------------------------------+\n");
-
-        printf(">> ");
-        scanf("%d", &userChoice);
-        printf("\n");
-
-        switch (userChoice) {
-            case 1:
-                printFields(filename, &bootSector, bootSectorSize); // PRINT REQUIRED FIELDS FROM THE BOOTSECTOR
-                break;
-            case 2:
-                produceClusters(filename, &bootSector, bootSectorSize); // LOAD A COPY OF FIRST FAT INTO MEMORY, AND PRODUCE AN ORDERED LIST OF CLUSTERS
-                break;
-            case 3:
-                dirOffset = (bootSector.BPB_RsvdSecCnt + (bootSector.BPB_NumFATs * bootSector.BPB_FATSz16)) * bootSector.BPB_BytsPerSec;
-                listDir(filename, &bootSector, bootSectorSize, dirOffset); // OUTPUT THE LIST OF FILES IN THE ROOT (Recursively called in openEntry when a directory is chosen)
-                break;
-        }
     }
 }
