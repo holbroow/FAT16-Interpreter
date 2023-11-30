@@ -2,6 +2,7 @@
 // BY WILL HOLBROOK NOV 2023
 // STUDENT ID: 38722798
 
+
 // IMPORT REQUIRED LIBRARIES
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,9 +13,6 @@
 #include <string.h>
 #include <stdbool.h>
 
-// MACROS (UNUSED RIGHT NOW)
-#define BOOT_SECTOR_SIZE (sizeof(BootSector))
-#define ROOT_DIR_OFFSET(bootSector) ((bootSector.BPB_RsvdSecCnt + (bootSector.BPB_NumFATs * bootSector.BPB_FATSz16)) * bootSector.BPB_BytsPerSec)
 
 // DATA STRUCTURES
 typedef struct __attribute__((__packed__)) {
@@ -55,6 +53,7 @@ typedef struct __attribute__((__packed__)) {
     u_int32_t DIR_FileSize;    // File size in bytes
 } DirectoryEntry;
 
+
 // READ BYTES AT OFFSET
 void readBytes(char *filename, off_t offset, void *buffer, ssize_t bytesToRead) {
     int fd = open(filename, O_RDONLY);        // Open file
@@ -69,8 +68,6 @@ u_int16_t getCluster(char *filename, off_t offset) {
     readBytes(filename, offset, &cluster, sizeof(u_int16_t));
     return cluster;
 }
-
-// CONVERT BINARY TO STRING
 
 
 
@@ -231,6 +228,13 @@ void openEntry(char *filename, BootSector *bootSector, size_t bootSectorSize, Di
         chosenEntryOffset += ((startingCluster + 2 + (2 * sizeof(u_int16_t))) * (bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec));
         listDir(filename, bootSector, bootSectorSize, chosenEntryOffset);
 
+    } else if (chosenEntry.DIR_Attr == 0x20) {      // ARCHIVE
+        // PRINT THE CHOSEN ARCHIVE
+        // issues: prints past the DIR
+        chosenEntryOffset += ((startingCluster + 2 + (2 * sizeof(u_int16_t))) * (bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec));
+        listDir(filename, bootSector, bootSectorSize, chosenEntryOffset);
+        
+        
     } else if (chosenEntry.DIR_Attr == 0x08) {      // VOLUME
         // PRINT ERROR MESSAGE AND RETURN TO ROOT
         printf("You have selected a volume entry. Returning to the root directory.\n\n");
@@ -268,7 +272,7 @@ int main() {
     printf("+---------------------------+\n");
 
     while(true) {
-        printf("+----------------------------------------+\n");
+        printf("\n\n+----------------------------------------+\n");
         printf("| Tasks:                                 |\n");
         printf("|    1. Populate and Print BootSector    |\n");
         printf("|    2. Produce cluster list             |\n");
