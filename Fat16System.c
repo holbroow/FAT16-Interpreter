@@ -151,6 +151,56 @@ void produceClusters(char *filename, BootSector *bootSector, size_t bootSectorSi
     printf("\n\n");
 }
 
+// TASK 5
+void openEntry(char *filename, BootSector *bootSector, size_t bootSectorSize, DirectoryEntry chosenEntry) {
+    off_t initialFATOffset = bootSector->BPB_RsvdSecCnt * bootSector->BPB_BytsPerSec;   // THE OFFSET AT WHICH TO BEGIN READING (the position of the first fat cluster)
+    ssize_t chosenEntrySize;                                                            // SIZE OF THE CHOSEN ENTRY IN BYTES
+    u_int32_t startingCluster;                                                          // STARTING CLUSTER OF THE CHOSEN ENTRY
+    u_int16_t previousCluster;                                                          // PREVIOUS CLUSTER TRAVERSED WHEN FINDING CLUSTER LIST
+    u_int16_t FATArray[bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec / 2];       // ARRAY CONTAINING THE FAT (FIRST FAT)
+    u_int16_t *clusterList = malloc(100 * sizeof(u_int16_t));;                           // CLUSTER LIST FOR THE CHOSEN FILE
+    int i = 0;                                                                          // STARTING INDEX FOR FINDING CLUSTER LIST IN FAT
+
+    // STARTING CLUSTER IN THE FAT FOR THE FILE
+    startingCluster = (((u_int32_t)chosenEntry.DIR_FstClusHI << 16) + chosenEntry.DIR_FstClusLO);   // STARTING CLUSTER OF CHOSEN FILE
+
+    // READ ENTIRE FAT INTO MEMORY
+    readBytes(filename, initialFATOffset, FATArray, bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec);
+    
+    // GET CLUSTER LIST FROM THE FILE STARTING CLUSTER
+    clusterList[i] = startingCluster;
+    printf("cluster list [i] : %04X\n", clusterList[i]);
+    previousCluster = startingCluster;
+    printf("previous cluster : %04X\n", previousCluster);
+    while(previousCluster < 0xFFF8 && previousCluster != 0x0000) {
+        if (FATArray[previousCluster] < 0xFFF8) {
+            i++;
+            clusterList[i] = FATArray[previousCluster];
+            printf("%04X\n", clusterList[i]);
+            previousCluster = clusterList[i];
+        }
+        break;
+    }
+    printf("FINISHED\n");
+
+    // PRINT CLUSTER LIST (DEBUG)
+    for (size_t i = 0; i < sizeof(clusterList)/sizeof(u_int16_t); i++) {
+        printf("%04X - ", clusterList[i]);
+    }
+    printf("\n");
+
+    char *entryData = malloc(chosenEntrySize);
+
+    for (size_t i = 0; i < 4; i++) {
+        int entryDataPos = (bootSector->BPB_RsvdSecCnt + (bootSector->BPB_NumFATs * bootSector->BPB_FATSz16)) * bootSector->BPB_BytsPerSec;
+        entryDataPos += ((startingCluster + 2 + (2 * sizeof(u_int16_t))) * (bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec));
+        // READ THE CHOSEN CLUSTER CONTENTS
+        readBytes(filename, entryDataPos, entryData, (bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec));
+    }
+
+    printf("File '%s' contains:\n%s", chosenEntry.DIR_Name, entryData);
+}
+
 // TASK 4
 void listDir(char *filename, BootSector *bootSector, size_t bootSectorSize, off_t dirOffset) {
     size_t numOfEntries = bootSector->BPB_RootEntCnt;                                               // NUMBER OF POSSIBLE ENTRIES IN THE ROOT DIRECTORY
@@ -218,43 +268,6 @@ void listDir(char *filename, BootSector *bootSector, size_t bootSectorSize, off_
     openEntry(filename, bootSector, bootSectorSize, chosenEntry);
 }
 
-// TASK 5
-void openEntry(char *filename, BootSector *bootSector, size_t bootSectorSize, DirectoryEntry chosenEntry) {
-    off_t chosenEntryOffset;            // OFFSET TO READ THE CHOSEN ENTRY FROM THE FILE
-    ssize_t chosenEntrySize;            // SIZE OF THE CHOSEN ENTRY IN BYTES
-    u_int32_t startingCluster;          // STARTING CLUSTER OF THE CHOSEN ENTRY
-
-    chosenEntrySize = chosenEntry.DIR_FileSize;                                                     // FILE SIZE OF CHOSEN FILE
-    startingCluster = (((u_int32_t)chosenEntry.DIR_FstClusHI << 16) + chosenEntry.DIR_FstClusLO);   // STARTING CLUSTER OF CHOSEN FILE
-
-    // CALCULATE FILE OFFSET IN FAT IMAGE
-    chosenEntryOffset = (bootSector->BPB_RsvdSecCnt + (bootSector->BPB_NumFATs * bootSector->BPB_FATSz16)) * bootSector->BPB_BytsPerSec;
-
-    if (chosenEntry.DIR_Attr == 0x10) {             // DIRECTORY
-        // PRINT THE CHOSEN DIRECTORY
-        // issues: prints past the DIR
-        chosenEntryOffset += ((startingCluster + 2 + (2 * sizeof(u_int16_t))) * (bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec));
-        listDir(filename, bootSector, bootSectorSize, chosenEntryOffset);
-
-    } else if (chosenEntry.DIR_Attr == 0x08) {      // VOLUME
-        // PRINT ERROR MESSAGE AND RETURN TO ROOT
-        printf("You have selected a volume entry. Returning to the root directory.\n\n");
-        listDir(filename, bootSector, bootSectorSize, (bootSector->BPB_RsvdSecCnt + (bootSector->BPB_NumFATs * bootSector->BPB_FATSz16)) * bootSector->BPB_BytsPerSec);
-        
-    } else if (chosenEntry.DIR_Attr == 0x0F) {      // INVALID/HIDDEN (e.g. LONG FILENAME)
-        // PRINT ERROR MESSAGE AND RETURN TO ROOT
-        printf("You have selected a hidden/invalid entry. Returning to the root directory.\n\n");
-        listDir(filename, bootSector, bootSectorSize, (bootSector->BPB_RsvdSecCnt + (bootSector->BPB_NumFATs * bootSector->BPB_FATSz16)) * bootSector->BPB_BytsPerSec);
-    
-    } else {                                        // REGULAR FILE
-        chosenEntryOffset += ((startingCluster + 2 + (2 * sizeof(u_int16_t))) * (bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec));
-        // PRINT THE CHOSEN FILE CONTENTS
-        char buffer[chosenEntrySize];
-        readBytes(filename, chosenEntryOffset, buffer, chosenEntrySize);
-        printf("File '%s' contains:\n%s", chosenEntry.DIR_Name, buffer);
-
-    }
-}
 
 
 
