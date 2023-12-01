@@ -158,8 +158,10 @@ void openEntry(char *filename, BootSector *bootSector, size_t bootSectorSize, Di
     u_int32_t startingCluster;                                                          // STARTING CLUSTER OF THE CHOSEN ENTRY
     u_int16_t previousCluster;                                                          // PREVIOUS CLUSTER TRAVERSED WHEN FINDING CLUSTER LIST
     u_int16_t FATArray[bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec / 2];       // ARRAY CONTAINING THE FAT (FIRST FAT)
-    u_int16_t *clusterList = malloc(100 * sizeof(u_int16_t));;                           // CLUSTER LIST FOR THE CHOSEN FILE
+    u_int16_t *clusterList = malloc(100 * sizeof(u_int16_t));;                          // CLUSTER LIST FOR THE CHOSEN FILE
     int i = 0;                                                                          // STARTING INDEX FOR FINDING CLUSTER LIST IN FAT
+    char *entryData = malloc(chosenEntrySize);                                          // ARRAY FOR HOLDING DATA READ FROM CLUSTER IN LIST
+
 
     // STARTING CLUSTER IN THE FAT FOR THE FILE
     startingCluster = (((u_int32_t)chosenEntry.DIR_FstClusHI << 16) + chosenEntry.DIR_FstClusLO);   // STARTING CLUSTER OF CHOSEN FILE
@@ -168,10 +170,8 @@ void openEntry(char *filename, BootSector *bootSector, size_t bootSectorSize, Di
     readBytes(filename, initialFATOffset, FATArray, bootSector->BPB_FATSz16 * bootSector->BPB_BytsPerSec);
     
     // GET CLUSTER LIST FROM THE FILE STARTING CLUSTER
-    clusterList[i] = startingCluster;
-    printf("cluster list [i] : %04X\n", clusterList[i]);
-    previousCluster = startingCluster;
-    printf("previous cluster : %04X\n", previousCluster);
+    clusterList[i] = startingCluster; // MAKE STARTING CLUSTER THE FIRST IN THE LIST
+    previousCluster = startingCluster; // SETTING THE PREVIOUS CLUSTER TO THE CLUSTER JUST SAVED
     while(previousCluster < 0xFFF8 && previousCluster != 0x0000) {
         if (FATArray[previousCluster] < 0xFFF8) {
             i++;
@@ -181,16 +181,8 @@ void openEntry(char *filename, BootSector *bootSector, size_t bootSectorSize, Di
         }
         break;
     }
-    printf("FINISHED\n");
 
-    // PRINT CLUSTER LIST (DEBUG)
-    for (size_t i = 0; i < sizeof(clusterList)/sizeof(u_int16_t); i++) {
-        printf("%04X - ", clusterList[i]);
-    }
-    printf("\n");
-
-    char *entryData = malloc(chosenEntrySize);
-
+    // READ DATA FROM DATA USING THE CLUSTER LIST
     for (size_t i = 0; i < 4; i++) {
         int entryDataPos = (bootSector->BPB_RsvdSecCnt + (bootSector->BPB_NumFATs * bootSector->BPB_FATSz16)) * bootSector->BPB_BytsPerSec;
         entryDataPos += ((startingCluster + 2 + (2 * sizeof(u_int16_t))) * (bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec));
@@ -198,6 +190,7 @@ void openEntry(char *filename, BootSector *bootSector, size_t bootSectorSize, Di
         readBytes(filename, entryDataPos, entryData, (bootSector->BPB_SecPerClus * bootSector->BPB_BytsPerSec));
     }
 
+    // PRINT THE DATA READ (THE FILE IN FULL)
     printf("File '%s' contains:\n%s", chosenEntry.DIR_Name, entryData);
 }
 
