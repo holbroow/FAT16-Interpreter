@@ -54,15 +54,23 @@ typedef struct __attribute__((__packed__)) {
 } DirectoryEntry;
 
 
-// READ BYTES AT OFFSET
+// READ BYTES AT OFFSET (TASK 1)
 void readBytes(char *filename, off_t offset, void *buffer, ssize_t bytesToRead) {
-    int fd = open(filename, O_RDONLY);        // Open file
-    lseek(fd, offset, SEEK_SET);          // Seek to the byte position for the bootsector
+    int fd = open(filename, O_RDONLY);    // Open file
+    if (fd == -1) {
+        perror("Error opening file");
+        exit(1);
+    }
+    if (lseek(fd, offset, SEEK_SET) == -1) { // Seek to the byte position for the bootsector
+        perror("Error seeking in file");
+        close(fd);
+        exit(1);
+    }
     read(fd, buffer, bytesToRead);        // Read the file from start the the end of the boot sector
     close(fd);                            // Close file
 }
 
-// RETURN CLUSTER AT OFFSET
+// RETURN CLUSTER AT OFFSET (UNUSED)
 u_int16_t getCluster(char *filename, off_t offset) {
     u_int16_t cluster;
     readBytes(filename, offset, &cluster, sizeof(u_int16_t));
@@ -143,7 +151,7 @@ void produceClusters(char *filename, BootSector *bootSector, size_t bootSectorSi
     printf("\n\n");
 }
 
-// TASK 4 (need to expand for Task 6)
+// TASK 4
 void listDir(char *filename, BootSector *bootSector, size_t bootSectorSize, off_t dirOffset) {
     size_t numOfEntries = bootSector->BPB_RootEntCnt;                                               // NUMBER OF POSSIBLE ENTRIES IN THE ROOT DIRECTORY
     DirectoryEntry **entries = malloc(bootSector->BPB_RootEntCnt * sizeof(DirectoryEntry));       // ARRAY OF POINTERS TO ENTRIES, READ FROM THE ROOT DIRECTORY POSITION
@@ -252,7 +260,7 @@ void openEntry(char *filename, BootSector *bootSector, size_t bootSectorSize, Di
 
 // MAIN FUNCTION
 int main() {
-    char filename[] = "fat16.img";              // THE FAT16 IMAGE FILENAME IN DIRECTORY
+    char filename[] = "fat16.img";             // THE FAT16 IMAGE FILENAME IN DIRECTORY
     BootSector bootSector;                      // STRUCT OF BOOTSECTOR AND ITS FIELDS
     size_t bootSectorSize = sizeof(bootSector); // SIZE OF BOOTSECTOR IN BYTES
     off_t dirOffset;                            // OFFSET TO READ THE ROOT DIRECTORY (initial call of listDir functon)
@@ -283,12 +291,15 @@ int main() {
 
         switch (userChoice) {
             case 1:
+                // TASK 2
                 printFields(filename, &bootSector, bootSectorSize); // PRINT REQUIRED FIELDS FROM THE BOOTSECTOR
                 break;
             case 2:
+                // TASK 3
                 produceClusters(filename, &bootSector, bootSectorSize); // LOAD A COPY OF FIRST FAT INTO MEMORY, AND PRODUCE AN ORDERED LIST OF CLUSTERS
                 break;
             case 3:
+                // TASK 4+5
                 dirOffset = (bootSector.BPB_RsvdSecCnt + (bootSector.BPB_NumFATs * bootSector.BPB_FATSz16)) * bootSector.BPB_BytsPerSec;
                 listDir(filename, &bootSector, bootSectorSize, dirOffset); // OUTPUT THE LIST OF FILES IN THE ROOT (Recursively called in openEntry when a directory is chosen)
                 break;
