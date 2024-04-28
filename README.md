@@ -1,3 +1,4 @@
 # SCC211-FAT16
 
-An implementation of the FAT16 Filesystem written in C
+An implementation of a FAT16 Filesystem image interpreter written in C.
+The program can open an image, read its bootsector, clusters, etc and provide file and directory access capability.
